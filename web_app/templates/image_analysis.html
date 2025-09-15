@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖼️ Image Analysis - FaceGuard AI</title>
+    
+    <!-- Modern CSS Framework -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-bg: #0a0a0a;
+            --card-bg: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff4757;
+            --border-radius: 20px;
+            --shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(45deg, #0a0a0a, #1a1a1a, #0a0a0a);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Header */
+        .header {
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            color: var(--success);
+        }
+
+        .back-btn {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            text-align: center;
+            margin: 2rem 0 3rem 0;
+            animation: fadeInUp 1s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-header h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 3rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .upload-section:hover::before {
+            left: 100%;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: var(--success);
+            margin-bottom: 2rem;
+        }
+
+        .upload-text {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .upload-subtext {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .upload-area {
+            border: 3px dashed rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: var(--success);
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--success);
+            background: rgba(0, 255, 136, 0.1);
+            transform: scale(1.02);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 1rem;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Results Section */
+        .results-section {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .results-header i {
+            font-size: 2rem;
+            color: var(--success);
+        }
+
+        .results-header h3 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .result-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--success);
+            transition: all 0.3s ease;
+        }
+
+        .result-item:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-5px);
+        }
+
+        .result-item.warning {
+            border-left-color: var(--warning);
+        }
+
+        .result-item.danger {
+            border-left-color: var(--danger);
+        }
+
+        .result-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Image Preview */
+        .image-preview {
+            max-width: 100%;
+            border-radius: 15px;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--success);
+            animation: spin 1s ease-in-out infinite;
+            margin: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--success);
+            border-radius: 10px;
+            padding: 1rem 2rem;
+            color: var(--text-primary);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.warning {
+            border-color: var(--warning);
+        }
+
+        .notification.danger {
+            border-color: var(--danger);
+        }
+        
+        /* Error Display */
+        .error-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border: 2px solid var(--danger);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+            max-width: 400px;
+        }
+        
+        .error-content i {
+            font-size: 3rem;
+            color: var(--danger);
+            margin-bottom: 1rem;
+        }
+        
+        .error-content h3 {
+            color: var(--danger);
+            margin-bottom: 1rem;
+        }
+        
+        .error-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+        
+        .error-close-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .error-close-btn:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .upload-section {
+                padding: 2rem 1rem;
+            }
+            
+            .upload-area {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+                <span>FaceGuard AI</span>
+            </div>
+            <a href="/" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>🖼️ Image Analysis</h1>
+            <p>Upload images for AI-powered deepfake detection and comprehensive facial analysis</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="upload-text">Upload Image for Analysis</div>
+            <div class="upload-subtext">Supports: JPG, PNG, BMP, TIFF (Max: 10MB)</div>
+            
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-image" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem; display: block;"></i>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Click to upload or drag & drop</p>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Your image will be analyzed for deepfake detection</p>
+            </div>
+            
+            <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleFileUpload(this)">
+            
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-upload"></i>
+                Choose Image
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Analysis Results</h3>
+            </div>
+            
+            <div id="imagePreview"></div>
+            
+            <div class="result-grid" id="resultsGrid">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="notificationText">System ready!</span>
+    </div>
+    
+    <!-- Error Display -->
+    <div class="error-display" id="errorDisplay" style="display: none;">
+        <div class="error-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>No Face Detected</h3>
+            <p id="errorMessage">Please upload a clear photo with a visible human face.</p>
+            <button onclick="clearError()" class="error-close-btn">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showNotification('❌ Please select an image file', 'danger');
+                return;
+            }
+            
+            // Validate file size (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showNotification('❌ File size too large. Please select an image under 10MB', 'danger');
+                return;
+            }
+            
+            // Show loading
+            showNotification('🔄 Analyzing image...', 'warning');
+            
+            // Preview image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('imagePreview').innerHTML = `
+                    <img src="${e.target.result}" alt="Uploaded Image" class="image-preview">
+                `;
+            };
+            reader.readAsDataURL(file);
+            
+            // Upload and analyze
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            fetch('/analyze_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error || data.success === false) {
+                    const errorMsg = data.error || 'No faces detected in the image. Please upload a clear photo with a visible human face.';
+                    showError(errorMsg);
+                    showNotification(`❌ ${errorMsg}`, 'danger');
+                    clearResults();
+                    return;
+                }
+                
+                displayResults(data);
+                showNotification('✅ Analysis complete!', 'success');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('❌ Analysis failed. Please try again.', 'danger');
+            });
+        }
+
+        function displayResults(data) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsGrid = document.getElementById('resultsGrid');
+            
+            // Show results section
+            resultsSection.style.display = 'block';
+            
+            // Create results with safe data access
+            const results = [
+                {
+                    label: 'Overall Assessment',
+                    value: data.assessment || 'N/A',
+                    class: data.is_authentic ? 'success' : 'danger'
+                },
+                {
+                    label: 'Face Detected',
+                    value: data.face_detected ? '✅ Yes' : '❌ No',
+                    class: 'success'
+                },
+                {
+                    label: 'Confidence Score',
+                    value: data.confidence ? `${(data.confidence * 100).toFixed(1)}%` : 'N/A',
+                    class: 'success'
+                },
+                {
+                    label: 'Overall Risk',
+                    value: data.overall_risk ? `${(data.overall_risk * 100).toFixed(1)}%` : 'N/A',
+                    class: data.overall_risk && data.overall_risk < 0.3 ? 'success' : data.overall_risk && data.overall_risk < 0.7 ? 'warning' : 'danger'
+                },
+                {
+                    label: 'Anti-Spoofing',
+                    value: data.anti_spoofing && data.anti_spoofing.overall_risk ? 
+                        (data.anti_spoofing.overall_risk < 0.5 ? '✅ PASS' : '❌ FAIL') : 'N/A',
+                    class: data.anti_spoofing && data.anti_spoofing.overall_risk && data.anti_spoofing.overall_risk < 0.5 ? 'success' : 'danger'
+                },
+                {
+                    label: 'Deepfake Detection',
+                    value: data.deepfake_detection && data.deepfake_detection.overall_risk ? 
+                        (data.deepfake_detection.overall_risk < 0.5 ? '✅ PASS' : '❌ FAIL') : 'N/A',
+                    class: data.deepfake_detection && data.deepfake_detection.overall_risk && data.deepfake_detection.overall_risk < 0.5 ? 'success' : 'danger'
+                },
+                {
+                    label: 'Whole Image Deepfake Prob',
+                    value: (data.deepfake_details && data.deepfake_details.whole && typeof data.deepfake_details.whole['Deepfake'] === 'number') ?
+                        (data.deepfake_details.whole['Deepfake'] * 100).toFixed(1) + '%' : 'N/A',
+                    class: 'info'
+                },
+                {
+                    label: 'Whole Image Real Prob',
+                    value: (data.deepfake_details && data.deepfake_details.whole && typeof data.deepfake_details.whole['Real one'] === 'number') ?
+                        (data.deepfake_details.whole['Real one'] * 100).toFixed(1) + '%' : 'N/A',
+                    class: 'info'
+                },
+                {
+                    label: 'Face Crop Deepfake Prob',
+                    value: (data.deepfake_details && data.deepfake_details.face && typeof data.deepfake_details.face['Deepfake'] === 'number') ?
+                        (data.deepfake_details.face['Deepfake'] * 100).toFixed(1) + '%' : 'N/A',
+                    class: 'info'
+                },
+                {
+                    label: 'Face Crop Real Prob',
+                    value: (data.deepfake_details && data.deepfake_details.face && typeof data.deepfake_details.face['Real one'] === 'number') ?
+                        (data.deepfake_details.face['Real one'] * 100).toFixed(1) + '%' : 'N/A',
+                    class: 'info'
+                }
+            ];
+            
+            resultsGrid.innerHTML = results.map(result => `
+                <div class="result-item ${result.class}">
+                    <div class="result-label">${result.label}</div>
+                    <div class="result-value">${result.value}</div>
+                </div>
+            `).join('');
+            
+            // Scroll to results
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            
+            notificationText.textContent = message;
+            notification.className = `notification show ${type}`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function clearResults() {
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'none';
+        }
+        
+        function showError(message) {
+            const errorDisplay = document.getElementById('errorDisplay');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorDisplay.style.display = 'block';
+        }
+        
+        function clearError() {
+            const errorDisplay = document.getElementById('errorDisplay');
+            errorDisplay.style.display = 'none';
+        }
+
+        // Drag and drop functionality
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileUpload(document.getElementById('fileInput'));
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                showNotification('🖼️ Image Analysis Ready - Upload an image to begin!', 'success');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

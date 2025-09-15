@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceGuard AI | Real‑Time Blink Liveness + Deepfake Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --ocean-primary: #1e3a8a;
+            --ocean-secondary: #0ea5e9;
+            --ocean-accent: #14b8a6;
+            --ocean-dark: #0f172a;
+            --ocean-darker: #020617;
+            --ocean-light: #f8fafc;
+            --ocean-glow: #06b6d4;
+            --ocean-teal: #0d9488;
+            --ocean-cyan: #0891b2;
+            --ocean-blue: #2563eb;
+            --gradient-ocean: linear-gradient(135deg, #1e3a8a, #0ea5e9, #14b8a6);
+            --gradient-deep: linear-gradient(135deg, #0f172a, #1e3a8a, #0ea5e9);
+            --gradient-surface: linear-gradient(45deg, #1e3a8a, #0ea5e9, #14b8a6, #0d9488);
+            --shadow-ocean: 0 0 40px rgba(30, 58, 138, 0.4);
+            --shadow-teal: 0 0 30px rgba(20, 184, 166, 0.3);
+            --shadow-blue: 0 0 50px rgba(14, 165, 233, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--ocean-darker);
+            color: var(--ocean-light);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Ocean Background */
+        .hero-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(30, 58, 138, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(20, 184, 166, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 60% 60%, rgba(13, 148, 136, 0.1) 0%, transparent 50%);
+            z-index: -2;
+        }
+
+        .ocean-waves {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .ocean-bubble {
+            position: absolute;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(14, 165, 233, 0.05) 100%);
+            border-radius: 50%;
+            animation: oceanFloat 6s infinite ease-in-out;
+            opacity: 0.6;
+        }
+
+        .ocean-bubble::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: oceanRipple 4s infinite ease-in-out;
+        }
+
+        .ocean-bubble:nth-child(1) { left: 15%; top: 20%; width: 12px; height: 12px; animation-delay: 0s; }
+        .ocean-bubble:nth-child(2) { left: 25%; top: 60%; width: 8px; height: 8px; animation-delay: 1s; }
+        .ocean-bubble:nth-child(3) { left: 35%; top: 30%; width: 15px; height: 15px; animation-delay: 2s; }
+        .ocean-bubble:nth-child(4) { left: 45%; top: 70%; width: 10px; height: 10px; animation-delay: 3s; }
+        .ocean-bubble:nth-child(5) { left: 55%; top: 25%; width: 18px; height: 18px; animation-delay: 4s; }
+        .ocean-bubble:nth-child(6) { left: 65%; top: 65%; width: 14px; height: 14px; animation-delay: 5s; }
+        .ocean-bubble:nth-child(7) { left: 75%; top: 35%; width: 9px; height: 9px; animation-delay: 1.5s; }
+        .ocean-bubble:nth-child(8) { left: 85%; top: 75%; width: 16px; height: 16px; animation-delay: 2.5s; }
+
+        @keyframes oceanFloat {
+            0%, 100% { transform: translateY(0px) scale(1); opacity: 0.6; }
+            50% { transform: translateY(-20px) scale(1.2); opacity: 0.8; }
+        }
+
+        @keyframes oceanRipple {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            background: #f9f9fb;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(30, 58, 138, 0.3);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 20px rgba(30, 58, 138, 0.1);
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--ocean-dark);
+            padding: 5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--ocean-dark);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--ocean-secondary);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-ocean);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8rem 2rem 4rem;
+            position: relative;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(139, 92, 246, 0.1), rgba(255, 107, 157, 0.1));
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-content {
+            max-width: 1000px;
+            z-index: 10;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .hero-description {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 3rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* CTA Buttons */
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-bottom: 4rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--ocean-dark);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-secondary:hover {
+            background: white;
+            color: var(--ocean-dark);
+            transform: translateY(-3px);
+        }
+
+        /* Features Grid */
+        .features {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            color: var(--ocean-dark);
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.3rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+            justify-items: center;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .feature-card {
+            background: white;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .feature-card:hover::before {
+            left: 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--ocean-secondary);
+            box-shadow: var(--shadow-ocean);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--ocean-dark);
+        }
+
+        .feature-description {
+            color: rgba(15, 23, 42, 0.8);
+            line-height: 1.6;
+        }
+
+        /* Challenge Demo Section */
+        .challenge-demo {
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            border-top: 1px solid rgba(30, 58, 138, 0.1);
+            border-bottom: 1px solid rgba(30, 58, 138, 0.1);
+            color: var(--ocean-dark);
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+            justify-items: center;
+        }
+
+        .challenge-item {
+            background: white;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        .challenge-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--ocean-secondary);
+            box-shadow: 0 15px 35px rgba(30, 58, 138, 0.2);
+        }
+
+        .challenge-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--ocean-accent);
+        }
+
+        .challenge-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--ocean-dark);
+        }
+
+        .challenge-description {
+            color: rgba(15, 23, 42, 0.7);
+            font-size: 0.9rem;
+        }
+
+        /* Security Levels */
+        .security-levels {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            color: var(--ocean-dark);
+        }
+
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+            justify-items: center;
+        }
+
+        .level-card {
+            background: white;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        .level-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--ocean-secondary);
+            box-shadow: var(--shadow-ocean);
+        }
+
+        .level-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .level-basic { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+        .level-advanced { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+        .level-enterprise { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+
+        .level-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--ocean-dark);
+        }
+
+        .level-features {
+            list-style: none;
+            text-align: left;
+        }
+
+        .level-features li {
+            padding: 0.5rem 0;
+            color: rgba(15, 23, 42, 0.8);
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .level-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--ocean-accent);
+            font-weight: bold;
+        }
+
+        /* Footer */
+        .footer {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 58, 138, 0.9));
+            padding: 3rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(30, 58, 138, 0.3);
+            color: white;
+            backdrop-filter: blur(20px);
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-logo {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-description {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .social-link {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        .footer-bottom {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+
+        /* How It Works - New */
+        .how-it-works {
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            border-top: 1px solid rgba(30, 58, 138, 0.1);
+            border-bottom: 1px solid rgba(30, 58, 138, 0.1);
+            color: var(--ocean-dark);
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .how-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
+            margin: 2.5rem 0 0;
+        }
+
+        .how-card {
+            background: #ffffff;
+            border: 1px solid rgba(30, 58, 138, 0.12);
+            border-radius: 14px;
+            padding: 1.25rem 1.25rem 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+            display: flex;
+            gap: 0.9rem;
+            align-items: flex-start;
+        }
+
+        .how-icon {
+            font-size: 1.4rem;
+            color: var(--ocean-secondary);
+            margin-top: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .how-content h4 {
+            margin: 0 0 0.35rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--ocean-dark);
+        }
+
+        .how-content p {
+            margin: 0;
+            color: rgba(15,23,42,0.78);
+            font-size: 0.93rem;
+            line-height: 1.55rem;
+        }
+
+        .innovation-highlight {
+            margin-top: 5rem;
+            padding: 3rem;
+            background: white;
+            border-radius: 25px;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .highlight-content h3 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .highlight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            justify-items: center;
+        }
+
+        .highlight-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 15px;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .highlight-item:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--ocean-accent);
+        }
+
+        .highlight-item i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .highlight-item h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: var(--ocean-dark);
+        }
+
+        .highlight-item p {
+            color: rgba(15, 23, 42, 0.7);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Enterprise Features Section */
+        .enterprise-features {
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-top: 1px solid rgba(30, 58, 138, 0.1);
+            border-bottom: 1px solid rgba(30, 58, 138, 0.1);
+            color: var(--ocean-dark);
+        }
+
+        .enterprise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+            justify-items: center;
+        }
+
+        .enterprise-card {
+            background: white;
+            border: 1px solid rgba(30, 58, 138, 0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .enterprise-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--ocean-accent);
+            box-shadow: 0 20px 40px rgba(20, 184, 166, 0.3);
+        }
+
+        .enterprise-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient-ocean);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .enterprise-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--ocean-dark);
+        }
+
+        .enterprise-card p {
+            color: rgba(15, 23, 42, 0.8);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tech-tag {
+            background: rgba(30, 58, 138, 0.1);
+            color: var(--ocean-accent);
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid rgba(30, 58, 138, 0.2);
+        }
+
+
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .hero-subtitle { font-size: 1.2rem; }
+            .section-title { font-size: 2rem; }
+            .cta-buttons { flex-direction: column; align-items: center; }
+            .nav-links { display: none; }
+            
+            /* Business Header */
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .trust-indicators {
+                justify-content: center;
+                gap: 1rem;
+            }
+            
+            .header-actions {
+                justify-content: center;
+            }
+            
+            /* Process flow tweaks */
+            .process-step { min-width: 240px; flex: 0 0 240px; }
+            
+
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 { font-size: 2rem; }
+            .hero-subtitle { font-size: 1.1rem; }
+            .section-title { font-size: 1.8rem; }
+            
+            .trust-indicators {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .header-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .btn-enterprise, .btn-pricing {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <!-- Ocean Background -->
+    <div class="hero-bg"></div>
+    <div class="ocean-waves">
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+        <div class="ocean-bubble"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="logo">FaceGuard AI</div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/live_analysis">Real‑Time Analyzer</a></li>
+                <li><a href="/analyze_image">Image Analysis</a></li>
+                <li><a href="/batch_analysis">Batch Processing</a></li>
+                <li><a href="/login">Login</a></li>
+                <li><a href="/register">Register</a></li>
+            </ul>
+        </div>
+    </nav>
+
+
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="fade-in-up">Next‑Generation<br>Facial Biometrics</h1>
+            <p class="hero-subtitle fade-in-up delay-1">Blink‑verified liveness + deepfake detection</p>
+            <p class="hero-description fade-in-up delay-2">
+                Go beyond static recognition with dlib eye‑landmark blink verification (mEAR),
+                classical anti‑spoofing, and gated deepfake scoring.
+            </p>
+            <div class="cta-buttons fade-in-up delay-3">
+                <a href="/live_analysis" class="btn btn-primary">
+                    <i class="fas fa-play"></i>
+                    Try Real‑Time Analyzer
+                </a>
+                <a href="/analyze_image" class="btn btn-secondary">
+                    <i class="fas fa-image"></i>
+                    Image Analysis
+                </a>
+                <a href="/login" class="btn btn-primary">
+                    <i class="fas fa-right-to-bracket"></i>
+                    Login
+                </a>
+                <a href="/register" class="btn btn-secondary">
+                    <i class="fas fa-user-plus"></i>
+                    Register
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section (Updated) -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Current live pipeline used by this model</p>
+
+            <div class="how-grid">
+                <div class="how-card fade-in-up delay-1">
+                    <div class="how-icon"><i class="fas fa-video"></i></div>
+                    <div class="how-content">
+                        <h4>Camera Stream</h4>
+                        <p>Browser captures frames and sends lightweight JPEGs to the server for real-time analysis (rate-limited and auto-aborted for stability).</p>
+                    </div>
+                </div>
+
+                <div class="how-card fade-in-up delay-2">
+                    <div class="how-icon"><i class="fas fa-user-check"></i></div>
+                    <div class="how-content">
+                        <h4>Face Detection</h4>
+                        <p>Server detects face ROI and landmarks. The UI only proceeds after a few consecutive positive detections to avoid flicker.</p>
+                    </div>
+                </div>
+
+                <div class="how-card fade-in-up delay-3">
+                    <div class="how-icon"><i class="fas fa-eye"></i></div>
+                    <div class="how-content">
+                        <h4>Eye Tracking + Landmarks</h4>
+                        <p>Eyes, bboxes, and 6-point eye landmarks are extracted. Pupil centers are estimated and rendered on the overlay for visual feedback.</p>
+                    </div>
+                </div>
+
+                <div class="how-card fade-in-up delay-4">
+                    <div class="how-icon"><i class="fas fa-eye"></i></div>
+                    <div class="how-content">
+                        <h4>Blink Verification (EAR/mEAR)</h4>
+                        <p>EAR and pose‑normalized mEAR are computed with EMA smoothing. A brief consecutive‑frame threshold confirms a blink for liveness.</p>
+                    </div>
+                </div>
+
+                <div class="how-card fade-in-up delay-4">
+                    <div class="how-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="how-content">
+                        <h4>Anti‑Spoofing</h4>
+                        <p>Texture, sharpness and motion signals estimate liveness risk. Results populate the Anti‑Spoofing tile in the live report.</p>
+                    </div>
+                </div>
+
+                <div class="how-card fade-in-up delay-4">
+                    <div class="how-icon"><i class="fas fa-brain"></i></div>
+                    <div class="how-content">
+                        <h4>Deepfake Scoring</h4>
+                        <p>On blink success, frames are scored by the deepfake engine. Whole-frame and face-crop probabilities are combined into overall risk.</p>
+                    </div>
+                </div>
+
+                <div class="how-card fade-in-up delay-4">
+                    <div class="how-icon"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="how-content">
+                        <h4>Final Assessment</h4>
+                        <p>Overall risk → AUTHENTIC / SUSPICIOUS / DEEPFAKE. Status badges and results are updated live in the dashboard.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section (Updated) -->
+    <section class="features">
+        <h2 class="section-title">Revolutionary Features</h2>
+        <p class="section-subtitle">Aligned with the current live model and UI pipeline</p>
+        
+        <div class="features-grid">
+            <div class="feature-card fade-in-up delay-1">
+                <div class="feature-icon">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <h3 class="feature-title">Blink‑Verified Liveness</h3>
+                <p class="feature-description">
+                    EAR/mEAR with EMA smoothing and consecutive‑frame gating confirms live presence
+                    before deepfake scoring, reducing false positives and UI flicker.
+                </p>
+            </div>
+
+            <div class="feature-card fade-in-up delay-2">
+                <div class="feature-icon">
+                    <i class="fas fa-crosshairs"></i>
+                </div>
+                <h3 class="feature-title">Pixel‑Accurate Eye Overlay</h3>
+                <p class="feature-description">
+                    Auto‑detects pixel vs normalized coordinates so landmarks, eye outlines and pupils render
+                    precisely on the video overlay for clear feedback.
+                </p>
+            </div>
+
+            <div class="feature-card fade-in-up delay-3">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3 class="feature-title">Dual Deepfake Scoring</h3>
+                <p class="feature-description">
+                    Whole‑frame and face‑crop probabilities feed an overall risk and final assessment
+                    (AUTHENTIC / SUSPICIOUS / DEEPFAKE) updated live.
+                </p>
+            </div>
+
+            <div class="feature-card fade-in-up delay-4">
+                <div class="feature-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h3 class="feature-title">Resilient Real‑Time Loop</h3>
+                <p class="feature-description">
+                    Request lock + 8s timeout + server down‑scale (≤720p) ensures smooth streaming
+                    and fewer connection resets while keeping responsiveness high.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    
+
+    
+
+    
+
+
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-logo">FaceGuard AI</div>
+            <p class="footer-description">
+                Pioneering the future of biometric security with AI-powered deepfake detection 
+                and dynamic liveness verification. Secure, intelligent, and user-friendly.
+            </p>
+            <div class="footer-bottom">
+                Next-Generation Biometric Security
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Navbar background on scroll
+        window.addEventListener('scroll', () => {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 100) {
+                navbar.style.background = '#ffffff';
+                navbar.style.boxShadow = '0 4px 20px rgba(30, 58, 138, 0.15)';
+            } else {
+                navbar.style.background = '#ffffff';
+                navbar.style.boxShadow = '0 2px 20px rgba(30, 58, 138, 0.10)';
+            }
+        });
+
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all feature cards and challenge items
+        document.querySelectorAll('.feature-card, .challenge-item, .level-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'all 0.6s ease';
+            observer.observe(el);
+        });
+
+        // Add hover effects to challenge items
+        document.querySelectorAll('.challenge-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+
+    <style>
+        .status-chip {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.08);
+            vertical-align: middle;
+        }
+        .status-chip.implemented { background: rgba(20,184,166,0.12); color: #0d9488; border-color: rgba(13,148,136,0.3); }
+        .status-chip.planned { background: rgba(99,102,241,0.10); color: #6366f1; border-color: rgba(99,102,241,0.25); }
+    </style>
+</body>
+</html>

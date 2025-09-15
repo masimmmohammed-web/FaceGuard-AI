@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - FaceGuard AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px 0;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .welcome {
+            color: #666;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn.secondary {
+            background: #6c757d;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-content {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .recent-activity {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .activity-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">🛡️ FaceGuard AI</div>
+            <div class="user-info">
+                <div class="welcome" id="welcomeMessage">Welcome!</div>
+                <button class="btn secondary" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading dashboard...</p>
+        </div>
+
+        <div id="dashboard" class="hidden">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalLogins">-</div>
+                    <div class="stat-label">Total Logins</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="lastLogin">-</div>
+                    <div class="stat-label">Last Login</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="successRate">-</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">
+                        👤 Profile Management
+                    </div>
+                    <div class="card-content">
+                        <p>Manage your personal information and account settings.</p>
+                        <br>
+                        <button class="btn" onclick="window.location.href='/profile'">View Profile</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        🔒 Security Settings
+                    </div>
+                    <div class="card-content">
+                        <p>Configure your security preferences and authentication settings.</p>
+                        <br>
+                        <button class="btn" onclick="window.location.href='/settings'">Security Settings</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        📊 Authentication History
+                    </div>
+                    <div class="card-content">
+                        <p>View your recent authentication attempts and security events.</p>
+                        <br>
+                        <button class="btn" onclick="loadAuthHistory()">View History</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        🛡️ System Status
+                    </div>
+                    <div class="card-content">
+                        <p>Check the current status of the FaceGuard AI system.</p>
+                        <br>
+                        <button class="btn" onclick="loadSystemStatus()">Check Status</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="recent-activity">
+                <div class="card-title">
+                    📈 Recent Activity
+                </div>
+                <div id="activityList">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading activity...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status hidden"></div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('auth_token');
+        let userData = null;
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.classList.remove('hidden');
+        }
+
+        function hideStatus() {
+            document.getElementById('status').classList.add('hidden');
+        }
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user_info', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    // Token expired or invalid
+                    localStorage.removeItem('auth_token');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    userData = result.user;
+                    document.getElementById('welcomeMessage').textContent = 
+                        `Welcome, ${userData.full_name || userData.username}!`;
+                    
+                    // Update stats
+                    document.getElementById('totalLogins').textContent = result.auth_history.length;
+                    
+                    if (userData.last_login) {
+                        const lastLogin = new Date(userData.last_login);
+                        document.getElementById('lastLogin').textContent = 
+                            lastLogin.toLocaleDateString();
+                    }
+                    
+                    // Calculate success rate
+                    const successfulLogins = result.auth_history.filter(a => a.success).length;
+                    const successRate = result.auth_history.length > 0 ? 
+                        Math.round((successfulLogins / result.auth_history.length) * 100) : 0;
+                    document.getElementById('successRate').textContent = successRate + '%';
+                    
+                    // Load activity
+                    loadActivity(result.auth_history);
+                    
+                } else {
+                    showStatus('Failed to load user information', 'error');
+                }
+
+            } catch (error) {
+                showStatus('Failed to load user information: ' + error.message, 'error');
+            }
+        }
+
+        function loadActivity(authHistory) {
+            const activityList = document.getElementById('activityList');
+            
+            if (authHistory.length === 0) {
+                activityList.innerHTML = '<p style="text-align: center; color: #666;">No recent activity</p>';
+                return;
+            }
+
+            const activityItems = authHistory.slice(0, 5).map(activity => {
+                const icon = activity.success ? '✅' : '❌';
+                const time = new Date(activity.timestamp).toLocaleString();
+                
+                return `
+                    <div class="activity-item">
+                        <div class="activity-icon">${icon}</div>
+                        <div class="activity-content">
+                            <div class="activity-title">${activity.attempt_type.replace('_', ' ').toUpperCase()}</div>
+                            <div class="activity-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            activityList.innerHTML = activityItems;
+        }
+
+        async function loadAuthHistory() {
+            try {
+                const response = await fetch('/api/auth_history', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show detailed history in a modal or new page
+                    alert(`Authentication History:\n\n${result.auth_history.map(a => 
+                        `${a.attempt_type}: ${a.success ? 'Success' : 'Failed'} (${new Date(a.timestamp).toLocaleString()})`
+                    ).join('\n')}`);
+                } else {
+                    showStatus('Failed to load authentication history', 'error');
+                }
+
+            } catch (error) {
+                showStatus('Failed to load authentication history: ' + error.message, 'error');
+            }
+        }
+
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/api/system_status', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`System Status:\n\nTotal Users: ${result.system_info.total_users}\nRegistration Date: ${result.system_info.user_registration_date}\nLast Login: ${result.system_info.last_login}`);
+                } else {
+                    showStatus('Failed to load system status', 'error');
+                }
+
+            } catch (error) {
+                showStatus('Failed to load system status: ' + error.message, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                localStorage.removeItem('auth_token');
+                window.location.href = '/login';
+
+            } catch (error) {
+                // Even if logout fails, clear local storage and redirect
+                localStorage.removeItem('auth_token');
+                window.location.href = '/login';
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (token) {
+                    document.cookie = `session_token=${token}; Path=/; Max-Age=${60*60*8}; SameSite=Lax`;
+                }
+            } catch(_) {}
+            if (!authToken) {
+                window.location.href = '/login';
+                return;
+            }
+
+            loadUserInfo().then(() => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+            });
+        });
+    </script>
+</body>
+</html>

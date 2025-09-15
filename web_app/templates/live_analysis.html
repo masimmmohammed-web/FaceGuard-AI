@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Advanced Facial Biometrics | FaceGuard AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --primary:#00d4ff; --secondary:#ff6b9d; --accent:#4ecdc4; --success:#00d4aa;
+      --warning:#ffaa00; --danger:#ff4757; --dark:#0a0a0a; --darker:#000000;
+      --light:#ffffff; --gray:#666666; --light-gray:#f5f5f5;
+      --gradient-primary:linear-gradient(135deg,#00d4ff,#4ecdc4);
+      --gradient-secondary:linear-gradient(135deg,#ff6b9d,#8b5cf6);
+      --shadow-primary:0 0 30px rgba(0,212,255,.3);
+      --shadow-secondary:0 0 30px rgba(255,107,157,.3);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--darker);color:var(--light);overflow-x:hidden;line-height:1.6}
+    .hero-bg{position:fixed;inset:0;background:
+      radial-gradient(circle at 20% 80%,rgba(0,212,255,.1) 0%,transparent 50%),
+      radial-gradient(circle at 80% 20%,rgba(139,92,246,.1) 0%,transparent 50%);z-index:-2}
+    .navbar{position:fixed;inset:0 0 auto 0;padding:1rem 2rem;background:rgba(0,0,0,.9);backdrop-filter:blur(20px);
+      border-bottom:1px solid rgba(0,212,255,.3);z-index:1000;box-shadow:var(--shadow-primary)}
+    .nav-content{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+    .logo{font-size:1.8rem;font-weight:800;background:var(--gradient-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .nav-links{display:flex;gap:2rem;list-style:none}
+    .nav-links a{color:var(--light);text-decoration:none;font-weight:500;transition:.2s}
+    .nav-links a:hover{color:var(--primary)}
+    .main-container{padding-top:80px;min-height:100vh;max-width:1400px;margin:0 auto;padding:100px 2rem 2rem}
+    .page-header{text-align:center;margin-bottom:3rem}
+    .page-title{font-size:3rem;font-weight:800;margin-bottom:1rem;background:var(--gradient-primary);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .page-subtitle{font-size:1.2rem;color:rgba(255,255,255,.8);max-width:600px;margin:0 auto}
+    .content-grid{display:grid;grid-template-columns:1fr 400px;gap:2rem;margin-bottom:3rem}
+    .camera-section,.status-panel,.challenge-section,.results-section,.step-progress{
+      background:rgba(255,255,255,.05);border:1px solid rgba(0,212,255,.3);border-radius:20px;padding:2rem;backdrop-filter:blur(20px);box-shadow:var(--shadow-primary)}
+    .camera-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .camera-title{font-size:1.5rem;font-weight:600}
+    .camera-controls{display:flex;gap:1rem}
+    .control-btn{padding:.5rem 1rem;border:1px solid rgba(0,212,255,.5);background:rgba(0,212,255,.1);color:var(--primary);border-radius:8px;cursor:pointer;transition:.2s;font-size:.9rem}
+    .control-btn:hover{background:rgba(0,212,255,.2);border-color:var(--primary);transform:translateY(-2px)}
+    .control-btn.active{background:var(--primary);color:var(--dark)}
+    .control-btn:disabled{opacity:.5;cursor:not-allowed}
+    .video-container{position:relative;width:100%;height:420px;background:rgba(0,0,0,.3);border-radius:15px;overflow:hidden;border:2px solid rgba(0,212,255,.3)}
+    #videoElement{width:100%;height:100%;object-fit:cover}
+    #overlayCanvas,#serverOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+    .camera-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.7)}
+    .status-header{text-align:center;margin-bottom:2rem}
+    .status-title{font-size:1.5rem;font-weight:600;margin-bottom:.5rem}
+    .status-item{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid rgba(255,255,255,.1)}
+    .status-item:last-child{border-bottom:none}
+    .status-value{font-weight:600;padding:.3rem .8rem;border-radius:20px;font-size:.9rem}
+    .status-success{background:rgba(0,212,170,.2);color:var(--success)}
+    .status-warning{background:rgba(255,170,0,.2);color:var(--warning)}
+    .status-danger{background:rgba(255,71,87,.2);color:var(--danger)}
+    .status-info{background:rgba(0,212,255,.2);color:var(--primary)}
+    .challenge-title,.results-title,.step-title{font-weight:700}
+    .challenge-title,.results-title{font-size:2rem;margin-bottom:1rem;background:var(--gradient-secondary);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .challenge-display{background:rgba(255,255,255,.05);border:2px solid rgba(139,92,246,.3);border-radius:15px;padding:2rem;text-align:center;margin-bottom:2rem;min-height:200px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+    .results-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem}
+    .result-card{background:rgba(255,255,255,.05);border:1px solid rgba(0,212,255,.3);border-radius:15px;padding:1.5rem;text-align:center}
+    .result-value.success{color:var(--success)} .result-value.warning{color:var(--warning)} .result-value.danger{color:var(--danger)} .result-value.info{color:var(--primary)}
+    .step-indicators{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem}
+    .step-item{display:flex;align-items:center;gap:1rem;padding:1.5rem;background:rgba(255,255,255,.05);border:1px solid rgba(0,212,255,.3);border-radius:15px;transition:.2s}
+    .step-item.active{border-color:var(--primary);background:rgba(0,212,255,.1)}
+    .step-item.completed{border-color:var(--success);background:rgba(0,212,170,.1)}
+    .step-number{width:50px;height:50px;border-radius:50%;background:rgba(0,212,255,.2);border:2px solid rgba(0,212,255,.5);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;color:var(--primary)}
+    .step-item.active .step-number{background:var(--primary);color:var(--dark);border-color:var(--primary)}
+    .step-item.completed .step-number{background:var(--success);color:var(--dark);border-color:var(--success)}
+    @media (max-width:1024px){.content-grid{grid-template-columns:1fr}.status-panel{order:-1}}
+    @media (max-width:768px){.page-title{font-size:2rem}.camera-controls{flex-direction:column}}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+    .fade-in-up{animation:fadeInUp .8s ease forwards}
+    .delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}
+  </style>
+</head>
+<body>
+  <div class="hero-bg"></div>
+
+  <nav class="navbar">
+    <div class="nav-content">
+      <div class="logo">FaceGuard AI</div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/live_analysis">Live Demo</a></li>
+        <li><a href="/analyze_image">Image Analysis</a></li>
+        <li><a href="/batch_analysis">Batch Processing</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <div class="page-header fade-in-up">
+      <h1 class="page-title">Step-by-Step Facial + Eye Tracking Biometrics</h1>
+      <p class="page-subtitle">Sequential process: Face Detection → Eye Tracking → Deepfake Analysis → Final Report</p>
+
+      <div class="process-instructions" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);border-radius:15px;padding:1.5rem;margin-top:2rem;max-width:800px;margin-inline:auto">
+        <h3 style="color:var(--primary);margin-bottom:1rem;font-size:1.3rem;"><i class="fas fa-info-circle"></i> How It Works</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;text-align:left;">
+          <div><strong style="color:var(--primary);">Step 1:</strong> Camera detects a face</div>
+          <div><strong style="color:var(--primary);">Step 2:</strong> Blink to verify liveness</div>
+          <div><strong style="color:var(--primary);">Step 3:</strong> AI analyzes for deepfake detection</div>
+          <div><strong style="color:var(--primary);">Step 4:</strong> Final authentication report</div>
+        </div>
+        <p style="margin-top:1rem;color:rgba(255,255,255,.8);font-size:.9rem;"><i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Keep your face centered and blink naturally once prompted.</p>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <!-- Camera -->
+      <div class="camera-section fade-in-up delay-1">
+        <div class="camera-header">
+          <h2 class="camera-title">Live Camera Feed</h2>
+          <div class="camera-controls">
+            <button class="control-btn" id="startBtn"><i class="fas fa-play"></i> Start Camera</button>
+            <button class="control-btn" id="stopBtn" disabled><i class="fas fa-stop"></i> Stop Camera</button>
+          </div>
+        </div>
+
+        <div class="video-container">
+          <video id="videoElement" autoplay muted></video>
+          <canvas id="overlayCanvas"></canvas>
+          <img id="serverOverlay" alt="" />
+          <div class="camera-overlay" id="cameraOverlay">
+            <div>
+              <i class="fas fa-camera" style="font-size:3rem;margin-bottom:1rem;color:var(--primary);"></i>
+              <p>Click "Start Camera" to begin advanced facial analysis</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status-panel fade-in-up delay-2">
+        <div class="status-header">
+          <h3 class="status-title">System Status</h3>
+          <p class="status-subtitle">Real-time monitoring</p>
+        </div>
+
+        <div class="status-item"><span class="status-label">Camera Status</span><span class="status-value status-info" id="cameraStatus">Inactive</span></div>
+        <div class="status-item"><span class="status-label">Face Detection</span><span class="status-value status-warning" id="faceStatus">No Face</span></div>
+        <div class="status-item"><span class="status-label">Eyes Detected</span><span class="status-value status-warning" id="eyesDetectedStatus">No</span></div>
+        <div class="status-item"><span class="status-label">Eye Method</span><span class="status-value status-info" id="eyeMethodStatus">-</span></div>
+        <div class="status-item"><span class="status-label">Gaze Direction</span><span class="status-value status-info" id="gazeStatus">-</span></div>
+        <div class="status-item"><span class="status-label">Blink / EAR</span><span class="status-value status-info" id="blinkStatus">-</span></div>
+        <div class="status-item"><span class="status-label">Deepfake Detection</span><span class="status-value status-info" id="deepfakeStatus">Starting...</span></div>
+        <div class="status-item"><span class="status-label">Authentication</span><span class="status-value status-warning" id="authStatus">Pending</span></div>
+        <div class="status-item"><span class="status-label">Thresholds</span><span class="status-value status-info" id="thrStatus">EAR: -, mEAR: -</span></div>
+      </div>
+    </div>
+
+    <!-- Eye Tracking -->
+    <div class="challenge-section fade-in-up delay-3">
+      <div class="challenge-header">
+        <h2 class="challenge-title">Step 3: Eye Tracking</h2>
+        <p class="page-subtitle">Real-time gaze direction and blink detection</p>
+      </div>
+
+      <div class="challenge-display" id="eyeTrackingDisplay">
+        <div class="challenge-icon">👁️</div>
+        <div class="challenge-name" id="eyeTrackingName">Tracking...</div>
+        <div class="challenge-description" id="eyeTrackingDesc">Keep your face centered and blink naturally</div>
+        <div class="challenge-status" id="eyeTrackingStatus">Initializing</div>
+      </div>
+    </div>
+
+    <!-- Steps -->
+    <div class="step-progress fade-in-up delay-3">
+      <div class="step-header">
+        <h2 class="step-title">Process Steps</h2>
+        <p class="step-subtitle">Current progress through the authentication pipeline</p>
+      </div>
+      <div class="step-indicators">
+        <div class="step-item" id="step1"><div class="step-number">1</div><div class="step-info"><div class="step-name">Face Detection</div><div class="step-status" id="step1Status">Waiting</div></div></div>
+        <div class="step-item" id="step2"><div class="step-number">2</div><div class="step-info"><div class="step-name">Eye Tracking</div><div class="step-status" id="step2Status">Waiting</div></div></div>
+        <div class="step-item" id="step3"><div class="step-number">3</div><div class="step-info"><div class="step-name">Deepfake Analysis</div><div class="step-status" id="step3Status">Waiting</div></div></div>
+        <div class="step-item" id="step4"><div class="step-number">4</div><div class="step-info"><div class="step-name">Final Report</div><div class="step-status" id="step4Status">Waiting</div></div></div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section fade-in-up delay-3">
+      <div class="results-header"><h2 class="results-title">Final Analysis Report</h2></div>
+      <div class="results-grid">
+        <div class="result-card"><div class="result-icon info"><i class="fas fa-shield-check"></i></div><h3 class="result-title">Anti-Spoofing</h3><div class="result-value info" id="antiSpoofingResult">--</div><p class="result-description">Liveness detection score</p></div>
+        <div class="result-card"><div class="result-icon warning"><i class="fas fa-brain"></i></div><h3 class="result-title">Deepfake Detection</h3><div class="result-value warning" id="deepfakeResult">--</div><p class="result-description">AI-generated content detection</p></div>
+        <div class="result-card"><div class="result-icon info"><i class="fas fa-image"></i></div><h3 class="result-title">Whole Image Deepfake Prob</h3><div class="result-value info" id="wholeDeepfakeProb">--</div><p class="result-description">Model probability on entire frame</p></div>
+        <div class="result-card"><div class="result-icon info"><i class="fas fa-user-circle"></i></div><h3 class="result-title">Face Crop Deepfake Prob</h3><div class="result-value info" id="faceDeepfakeProb">--</div><p class="result-description">Model probability on face crop</p></div>
+        <div class="result-card"><div class="result-icon info"><i class="fas fa-image"></i></div><h3 class="result-title">Whole Image Real Prob</h3><div class="result-value info" id="wholeRealProb">--</div><p class="result-description">Complementary probability</p></div>
+        <div class="result-card"><div class="result-icon info"><i class="fas fa-user-circle"></i></div><h3 class="result-title">Face Crop Real Prob</h3><div class="result-value info" id="faceRealProb">--</div><p class="result-description">Complementary probability</p></div>
+        <div class="result-card"><div class="result-icon info"><i class="fas fa-chart-line"></i></div><h3 class="result-title">Overall Risk</h3><div class="result-value info" id="overallRiskResult">--</div><p class="result-description">Combined security assessment</p></div>
+        <div class="result-card"><div class="result-icon success"><i class="fas fa-check-circle"></i></div><h3 class="result-title">Final Decision</h3><div class="result-value success" id="finalDecisionResult">--</div><p class="result-description">Authentication result</p></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ========================= Tunables & Globals =========================
+  const REQUIRED_FACE_DETECTIONS = 3;
+  const DEEPFAKE_TICK_MS = 3000;
+  const EYE_LOOP_INTERVAL_MS = 60; // ~8 FPS to catch blinks
+  const EMA_ALPHA = 0.4;
+
+  // Persist a per-client key so server-side blink buffers are stable
+  const CLIENT_KEY = (() => {
+    const k = localStorage.getItem('fg_client_key');
+    if (k) return k;
+    const nk = 'web-' + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('fg_client_key', nk);
+    return nk;
+  })();
+
+  let stream = null, isActive = false;
+  let faceDetectionInterval = null, deepfakeDetectionInterval = null;
+  let faceDetectionCount = 0, consecutiveFaceDetections = 0, deepfakeDetectionCount = 0;
+  let overlayBusy = false, eyeLoopHandle = 0, lastEyeTick = 0;
+  let emaEAR = null, emaMEAR = null, blinkClosedFrameCount = 0;
+
+  // ========================= DOM =========================
+  const video = document.getElementById('videoElement');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  const overlayCtx = overlayCanvas.getContext('2d', { willReadFrequently:true });
+  const serverOverlay = document.getElementById('serverOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn  = document.getElementById('stopBtn');
+  const cameraOverlay = document.getElementById('cameraOverlay');
+
+  // Work canvases (upload sources)
+  const workCanvas = document.createElement('canvas');
+  const workCtx = workCanvas.getContext('2d', { willReadFrequently:true });
+  workCanvas.width = 320; workCanvas.height = 240; // better server face detect than 160x120
+
+  const eyeCanvas = document.createElement('canvas');
+  const eyeCtx = eyeCanvas.getContext('2d', { willReadFrequently:true });
+
+  // ========================= Helpers =========================
+  function updateStatus(id, value, type){
+    const el = document.getElementById(id); if(!el) return;
+    el.textContent = value; el.className = `status-value status-${type}`;
+  }
+  function updateStepProgress(step, state, txt){
+    const stepEl = document.getElementById(`step${step}`);
+    const statusEl = document.getElementById(`step${step}Status`);
+    if(!stepEl || !statusEl) return;
+    stepEl.classList.remove('active','completed');
+    if(state==='active') stepEl.classList.add('active');
+    if(state==='completed') stepEl.classList.add('completed');
+    statusEl.textContent = txt;
+  }
+  function capture(canvas, ctx, w, h){
+    if(!video.videoWidth) return false;
+    ctx.drawImage(video, 0, 0, w, h);
+    return true;
+  }
+  const toDataURL = (canvas, q=0.75)=> canvas.toDataURL('image/jpeg', q);
+
+  function distance2D(a,b){const dx=a[0]-b[0], dy=a[1]-b[1]; return Math.hypot(dx,dy)}
+  function rotatePoints(pts, angle, c){
+    const cos=Math.cos(angle), sin=Math.sin(angle), [cx,cy]=c;
+    return pts.map(([x,y])=>{const rx=x-cx, ry=y-cy; return [rx*cos-ry*sin+cx, rx*sin+ry*cos+cy];});
+  }
+  function earFrom6(pts){const v1=distance2D(pts[1],pts[5]); const v2=distance2D(pts[2],pts[4]); const h=distance2D(pts[0],pts[3]); return (v1+v2)/(2*h+1e-6)}
+  function mEAR(pts){
+    const p0=pts[0], p3=pts[3]; const ang=Math.atan2(p3[1]-p0[1], p3[0]-p0[0]);
+    const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length; const cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+    const r=rotatePoints(pts,-ang,[cx,cy]); return earFrom6(r);
+  }
+
+  function mapPointToOverlay(pt, sx, sy, wOv, hOv, normalized){
+    const [x,y]=pt; return normalized ? [x*wOv, y*hOv] : [x*sx, y*sy];
+  }
+
+  function drawEyeMarkers(ctx, pts, sx, sy, wOv, hOv, normalized){
+    if(!Array.isArray(pts) || pts.length<3) return;
+    ctx.strokeStyle = '#0066FF'; ctx.lineWidth = 1.2; ctx.beginPath();
+    for(let i=0;i<pts.length;i++){ const [x,y]=mapPointToOverlay(pts[i],sx,sy,wOv,hOv,normalized); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = '#FFFF00';
+    for(let i=0;i<pts.length;i++){ const [x,y]=mapPointToOverlay(pts[i],sx,sy,wOv,hOv,normalized); ctx.beginPath(); ctx.arc(x,y,1.6,0,Math.PI*2); ctx.fill(); }
+  }
+
+  // ========================= Camera =========================
+  startBtn.addEventListener('click', startCamera);
+  stopBtn.addEventListener('click', stopCamera);
+  window.addEventListener('beforeunload', stopCamera);
+
+  async function startCamera(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video:{ width:{ideal:640}, height:{ideal:480}, facingMode:'user' }, audio:false });
+      video.srcObject = stream; isActive = true;
+      startBtn.disabled = true; stopBtn.disabled = false; cameraOverlay.style.display='none';
+      updateStatus('cameraStatus','Active','success');
+
+      video.addEventListener('loadeddata', ()=>{
+        // reset state
+        faceDetectionCount=0; consecutiveFaceDetections=0; deepfakeDetectionCount=0;
+        window.faceDetectionComplete=false; window.blinkAuthComplete=false; window.deepfakeDetectionComplete=false;
+
+        // size overlays
+        overlayCanvas.width = video.clientWidth || video.videoWidth || 640;
+        overlayCanvas.height= video.clientHeight|| video.videoHeight|| 480;
+        eyeCanvas.width = Math.max(256, (video.videoWidth||640)/2);
+        eyeCanvas.height= Math.max(192, (video.videoHeight||480)/2);
+
+        startFaceDetection();
+        startEyeLoop();
+      }, { once:true });
+    }catch(err){
+      console.error('camera error', err);
+      updateStatus('cameraStatus','Error','danger');
+      alert('Unable to access camera. Please check permissions.');
+    }
+  }
+
+  function stopCamera(){
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    isActive=false; startBtn.disabled=false; stopBtn.disabled=true; cameraOverlay.style.display='flex';
+    updateStatus('cameraStatus','Inactive','info');
+    stopFaceDetection(); stopEyeLoop();
+    window.faceDetectionComplete=false; window.blinkAuthComplete=false; window.deepfakeDetectionComplete=false;
+    deepfakeDetectionCount=0; consecutiveFaceDetections=0; faceDetectionCount=0;
+    updateStatus('faceStatus','No Face','warning');
+    updateStatus('deepfakeStatus','Inactive','warning');
+    updateStatus('authStatus','Pending','warning');
+    updateStatus('eyesDetectedStatus','No','warning');
+    updateStatus('eyeMethodStatus','-','info');
+    updateStatus('gazeStatus','-','info');
+    updateStatus('blinkStatus','-','info');
+    updateStatus('thrStatus','EAR: -, mEAR: -','info');
+    updateStepProgress(1,'active','Waiting for camera...');
+    updateStepProgress(2,'active','Waiting for face...');
+    updateStepProgress(3,'active','Waiting for analysis...');
+    updateStepProgress(4,'active','Waiting for report...');
+    overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    serverOverlay.src='';
+  }
+
+  // ========================= Step 1: Face Detection =========================
+  function startFaceDetection(){
+    if(faceDetectionInterval) clearInterval(faceDetectionInterval);
+    updateStatus('faceStatus','Detecting...','info');
+    updateStatus('deepfakeStatus','Waiting for face...','warning');
+    updateStepProgress(1,'active','Detecting face...'); updateStepProgress(2,'active','Waiting for face...');
+    updateStepProgress(3,'active','Waiting for face...'); updateStepProgress(4,'active','Waiting for face...');
+
+    faceDetectionInterval = setInterval(async ()=>{
+      if(!isActive || !video.videoWidth) return;
+      if(!capture(workCanvas, workCtx, workCanvas.width, workCanvas.height)) return;
+
+      try{
+        const frameData = toDataURL(workCanvas, 0.8);
+        const controller = new AbortController(); const to = setTimeout(()=>controller.abort(), 8000);
+        const res = await fetch('/detect_faces', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ frame_data: frameData, client_key: CLIENT_KEY }),
+          signal: controller.signal
+        });
+        clearTimeout(to);
+        const data = await res.json();
+
+        if(data.success && Array.isArray(data.faces) && data.faces.length>0){
+          consecutiveFaceDetections++;
+          if(consecutiveFaceDetections >= REQUIRED_FACE_DETECTIONS){
+            updateStatus('faceStatus','Face Detected ✓','success');
+            updateStepProgress(1,'completed','Face Detected ✓');
+            if(!window.faceDetectionComplete){
+              window.faceDetectionComplete = true;
+              updateStatus('deepfakeStatus','Waiting for blink...','warning');
+              updateStepProgress(2,'active','Waiting for blink authentication...');
+              updateStepProgress(3,'active','Waiting for blink...');
+            }
+          } else {
+            updateStatus('faceStatus',`Detecting... (${consecutiveFaceDetections}/${REQUIRED_FACE_DETECTIONS})`,'info');
+          }
+        } else {
+          consecutiveFaceDetections=0;
+          updateStatus('faceStatus','No Face Detected','warning');
+          window.faceDetectionComplete=false; window.blinkAuthComplete=false; window.deepfakeDetectionComplete=false;
+          deepfakeDetectionCount=0;
+          if(deepfakeDetectionInterval){ clearInterval(deepfakeDetectionInterval); deepfakeDetectionInterval=null; }
+          updateStepProgress(2,'active','Waiting for face...');
+          updateStepProgress(3,'active','Waiting for face...');
+          updateStepProgress(4,'active','Waiting for face...');
+          updateStatus('deepfakeStatus','Waiting for face...','warning');
+          updateStatus('authStatus','Pending','warning');
+          updateStatus('eyesDetectedStatus','No','warning');
+          updateStatus('eyeMethodStatus','-','info');
+          updateStatus('gazeStatus','-','info');
+          updateStatus('blinkStatus','-','info');
+          updateStatus('thrStatus','EAR: -, mEAR: -','info');
+        }
+      }catch(e){
+        console.warn('Face detect error', e);
+        updateStatus('faceStatus','Detection Error','danger');
+      }
+
+      faceDetectionCount++;
+    }, 1200);
+  }
+  function stopFaceDetection(){ if(faceDetectionInterval){clearInterval(faceDetectionInterval); faceDetectionInterval=null} if(deepfakeDetectionInterval){clearInterval(deepfakeDetectionInterval); deepfakeDetectionInterval=null} }
+
+  // ========================= Step 2: Eye Loop (blink + overlay) =========================
+  function startEyeLoop(){
+    if(eyeLoopHandle) return;
+    const loop = async (ts)=>{
+      eyeLoopHandle = requestAnimationFrame(loop);
+      if(!isActive || !video.videoWidth) return;
+      if(ts - lastEyeTick < EYE_LOOP_INTERVAL_MS) return;
+      lastEyeTick = ts;
+      if(overlayBusy) return;
+      if(!capture(eyeCanvas, eyeCtx, eyeCanvas.width, eyeCanvas.height)) return;
+
+      overlayBusy = true;
+      try{
+        const frameData = toDataURL(eyeCanvas, 0.66);
+        const controller = new AbortController(); const to = setTimeout(()=>controller.abort(), 8000);
+        const resp = await fetch('/analyze_frame', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ frame_data: frameData, client_key: CLIENT_KEY, debug_overlay: true }),
+          signal: controller.signal
+        });
+        clearTimeout(to);
+        const data = await resp.json();
+
+        // Clear old overlay
+        overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+        serverOverlay.src = '';
+
+        if(!data || !data.success || !data.eye_tracking){
+          updateStatus('eyesDetectedStatus','No','warning');
+          updateStatus('eyeMethodStatus','-','info');
+          updateStatus('gazeStatus','-','info');
+          updateStatus('blinkStatus','-','info');
+          updateStatus('thrStatus','EAR: -, mEAR: -','info');
+          updateStatus('authStatus','Pending','warning');
+          window.blinkAuthComplete = false;
+          return;
+        }
+
+        // Show server debug drawing if provided (nice for alignment)
+        if(data.debug_image){ serverOverlay.src = data.debug_image; }
+
+        const et = data.eye_tracking, eyes=et.eyes||{}, pupils=et.pupils||{}, blink=et.blink||{};
+        const wOv = overlayCanvas.width, hOv = overlayCanvas.height;
+        const sx = wOv / eyeCanvas.width, sy = hOv / eyeCanvas.height;
+
+        // Decide if landmarks/bboxes are normalized [0..1]
+        const sampleLm = (eyes.left_landmarks && eyes.left_landmarks[0]) || (eyes.right_landmarks && eyes.right_landmarks[0]) || null;
+        const lmNormalized = Array.isArray(sampleLm) && sampleLm[0] <= 1 && sampleLm[1] <= 1;
+        const sampleBb = eyes.left_bbox || eyes.right_bbox || null;
+        const bbNormalized = Array.isArray(sampleBb) && sampleBb[2] <= 1 && sampleBb[3] <= 1;
+
+        // Draw bboxes
+        overlayCtx.strokeStyle='#00FFFF'; overlayCtx.lineWidth=2;
+        const drawBox=(bb)=>{ if(!bb) return; let [x,y,w,h]=bb;
+          if(bbNormalized){ x*=wOv; y*=hOv; w*=wOv; h*=hOv; } else { x*=sx; y*=sy; w*=sx; h*=sy; }
+          overlayCtx.strokeRect(x,y,w,h);
+        };
+        drawBox(eyes.left_bbox); drawBox(eyes.right_bbox);
+
+        // Pupils
+        const drawPupil=(p,bb)=>{ if(!p||!bb) return; let [x,y,w,h]=bb;
+          const px = x + p[0]*w, py = y + p[1]*h;
+          overlayCtx.fillStyle='#FFAA00'; overlayCtx.beginPath();
+          if(bbNormalized) overlayCtx.arc(px*wOv, py*hOv, 3, 0, Math.PI*2);
+          else overlayCtx.arc(px*sx, py*sy, 3, 0, Math.PI*2);
+          overlayCtx.fill();
+        };
+        drawPupil(pupils.left_pupil, eyes.left_bbox);
+        drawPupil(pupils.right_pupil, eyes.right_bbox);
+
+        // Eye landmarks (yellow points + blue outline)
+        if(eyes.left_landmarks)  drawEyeMarkers(overlayCtx, eyes.left_landmarks, sx, sy, wOv, hOv, lmNormalized);
+        if(eyes.right_landmarks) drawEyeMarkers(overlayCtx, eyes.right_landmarks, sx, sy, wOv, hOv, lmNormalized);
+
+        // Status updates
+        const eyesDetected = Boolean(eyes.detected);
+        updateStatus('eyesDetectedStatus', eyesDetected ? 'Yes' : 'No', eyesDetected ? 'success':'warning');
+        updateStatus('eyeMethodStatus', eyes.method ? String(eyes.method) : '-', 'info');
+        updateStatus('gazeStatus', pupils.gaze_direction ? String(pupils.gaze_direction) : '-', 'info');
+
+        // Threshold readout (if server supplies)
+        const thrEar = Number(blink?.thresholds?.ear ?? NaN);
+        const thrME  = Number(blink?.thresholds?.mear ?? NaN);
+        if(!Number.isNaN(thrEar) || !Number.isNaN(thrME)){
+          const te = !Number.isNaN(thrEar) ? thrEar.toFixed(3) : '-';
+          const tm = !Number.isNaN(thrME)  ? thrME.toFixed(3)  : '-';
+          updateStatus('thrStatus', `EAR: ${te}, mEAR: ${tm}`, 'info');
+        } else {
+          updateStatus('thrStatus', 'EAR: -, mEAR: -', 'info');
+        }
+
+        // Prefer server blink
+        let rawEAR = Number(blink.eye_aspect_ratio ?? NaN);
+        let rawME  = Number(blink.mear ?? NaN);
+        if(!Number.isNaN(rawEAR)) emaEAR = (emaEAR==null)?rawEAR:(EMA_ALPHA*rawEAR + (1-EMA_ALPHA)*emaEAR);
+        if(!Number.isNaN(rawME))  emaMEAR = (emaMEAR==null)?rawME :(EMA_ALPHA*rawME  + (1-EMA_ALPHA)*emaMEAR);
+
+        const serverBlink = Boolean(blink.blink_detected);
+        if(serverBlink){
+          updateStatus('blinkStatus', `Blink: Yes${!Number.isNaN(rawEAR)?'  EAR:'+rawEAR.toFixed(2):''}`, 'success');
+          if(!window.blinkAuthComplete){
+            window.blinkAuthComplete = true;
+            updateStatus('authStatus','Blink verified ✓','success');
+            updateStepProgress(2,'completed','Blink Verified ✓');
+            updateStepProgress(3,'active','Starting deepfake analysis...');
+            startContinuousDeepfakeDetection();
+          }
+        } else {
+          // Client fallback if server didn’t confirm blink
+          if(eyesDetected && (eyes.left_landmarks || eyes.right_landmarks)){
+            const toPx = (pt)=> lmNormalized ? [pt[0]*wOv, pt[1]*hOv] : [pt[0]*sx, pt[1]*sy];
+            const take6 = (arr)=> [0,1,2,3,4,5].map(i=>toPx(arr[i]));
+            let cEAR = NaN, cME = NaN;
+            if(eyes.left_landmarks && eyes.right_landmarks){
+              const l6 = take6(eyes.left_landmarks), r6 = take6(eyes.right_landmarks);
+              cEAR = (earFrom6(l6) + earFrom6(r6))/2;
+              cME  = (mEAR(l6) + mEAR(r6))/2;
+            } else {
+              const e = eyes.left_landmarks || eyes.right_landmarks;
+              if(e){ const e6 = take6(e); cEAR = earFrom6(e6); cME = mEAR(e6); }
+            }
+            if(!Number.isNaN(cEAR)) emaEAR = (emaEAR==null)?cEAR:(EMA_ALPHA*cEAR+(1-EMA_ALPHA)*emaEAR);
+            if(!Number.isNaN(cME))  emaMEAR= (emaMEAR==null)?cME :(EMA_ALPHA*cME +(1-EMA_ALPHA)*emaMEAR);
+
+            const thE = !Number.isNaN(thrEar)?thrEar:0.32;
+            const thM = !Number.isNaN(thrME)?thrME:0.32;
+            const closed = (!Number.isNaN(cME) && cME < thM) || (!Number.isNaN(cEAR) && cEAR < thE);
+            if(closed) blinkClosedFrameCount++; else {
+              if(blinkClosedFrameCount >= 2){
+                updateStatus('blinkStatus', `Blink: Yes${!Number.isNaN(cEAR)?'  EAR:'+cEAR.toFixed(2):''}`, 'success');
+                if(!window.blinkAuthComplete){
+                  window.blinkAuthComplete = true;
+                  updateStatus('authStatus','Blink verified ✓','success');
+                  updateStepProgress(2,'completed','Blink Verified ✓');
+                  updateStepProgress(3,'active','Starting deepfake analysis...');
+                  startContinuousDeepfakeDetection();
+                }
+              }
+              blinkClosedFrameCount = 0;
+            }
+            if(blinkClosedFrameCount < 2){
+              const val = !Number.isNaN(cEAR)? cEAR.toFixed(2) : (!Number.isNaN(rawEAR)? rawEAR.toFixed(2) : '-');
+              updateStatus('blinkStatus', `Blink: No  EAR: ${val}`, 'info');
+            }
+          } else {
+            updateStatus('blinkStatus', `Blink: No${!Number.isNaN(rawEAR)?'  EAR:'+rawEAR.toFixed(2):''}`, 'info');
+          }
+        }
+
+        // Text overlay: EAR/mEAR live
+        let y=16; overlayCtx.fillStyle='#32DEFF'; overlayCtx.font='12px Inter, Arial, sans-serif';
+        if(!Number.isNaN(rawEAR)) { overlayCtx.fillText(`EAR: ${rawEAR.toFixed(3)}`, 8, y); y+=16; }
+        if(!Number.isNaN(rawME))  { overlayCtx.fillText(`mEAR: ${rawME.toFixed(3)}`, 8, y); y+=16; }
+      }catch(e){
+        // swallow transient errors
+      }finally{
+        overlayBusy = false;
+      }
+    };
+    eyeLoopHandle = requestAnimationFrame(loop);
+  }
+  function stopEyeLoop(){ if(eyeLoopHandle){ cancelAnimationFrame(eyeLoopHandle); eyeLoopHandle=0 } overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height); serverOverlay.src='' }
+
+  // ========================= Step 3: Deepfake (continuous) =========================
+  function startContinuousDeepfakeDetection(){
+    if(deepfakeDetectionInterval) return;
+    deepfakeDetectionCount = 0;
+    deepfakeDetectionInterval = setInterval(async ()=>{
+      if(!isActive || !window.faceDetectionComplete || !window.blinkAuthComplete || window.deepfakeDetectionComplete) return;
+      if(!capture(workCanvas, workCtx, workCanvas.width, workCanvas.height)) return;
+
+      try{
+        const frameData = toDataURL(workCanvas, 0.8);
+        const controller = new AbortController(); const to = setTimeout(()=>controller.abort(), 10000);
+        const resp = await fetch('/analyze_frame', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ frame_data: frameData, client_key: CLIENT_KEY }),
+          signal: controller.signal
+        });
+        clearTimeout(to);
+        const data = await resp.json();
+
+        if(!data.success){
+          updateStatus('deepfakeStatus','Analysis Failed','danger');
+          return;
+        }
+
+        // If server says no face, reset pipeline gently
+        if(data.face_detected === false){
+          updateStatus('deepfakeStatus','No Face - Stopping Analysis','warning');
+          window.deepfakeDetectionComplete=false; window.faceDetectionComplete=false; deepfakeDetectionCount=0; consecutiveFaceDetections=0;
+          clearInterval(deepfakeDetectionInterval); deepfakeDetectionInterval=null;
+          updateStepProgress(1,'active','No Face');
+          updateStepProgress(2,'active','Waiting for face...');
+          updateStepProgress(3,'active','Waiting for face...');
+          updateStepProgress(4,'active','Waiting for report...');
+          updateStatus('faceStatus','No Face Detected','warning');
+          return;
+        }
+
+        updateLiveResults(data);
+        deepfakeDetectionCount++;
+        if(deepfakeDetectionCount >= 3){
+          updateStatus('deepfakeStatus','Deepfake Analysis Complete ✓','success');
+          updateStepProgress(3,'completed','Analysis Complete ✓');
+          updateStepProgress(4,'active','Report ready');
+          window.deepfakeDetectionComplete = true;
+          clearInterval(deepfakeDetectionInterval); deepfakeDetectionInterval=null;
+        }
+      }catch(e){
+        console.warn('Deepfake tick error', e);
+      }
+    }, DEEPFAKE_TICK_MS);
+  }
+
+  function updateLiveResults(data){
+    const anti = Number(data?.anti_spoofing?.overall_risk ?? 0);
+    const deep = Number(data?.deepfake_detection?.overall_risk ?? 0);
+    const overall = Number(data?.overall_risk ?? 0);
+    const wholeProb = Number(data?.deepfake_details?.whole?.Deepfake ?? NaN);
+    const faceProb  = Number(data?.deepfake_details?.face ?.Deepfake ?? NaN);
+    const wholeReal = Number(data?.deepfake_details?.whole?.['Real one'] ?? NaN);
+    const faceReal  = Number(data?.deepfake_details?.face ?.['Real one'] ?? NaN);
+    const assessment = data?.assessment || 'UNKNOWN';
+    const isAuthentic = Boolean(data?.is_authentic);
+
+    document.getElementById('antiSpoofingResult').textContent = anti.toFixed(3);
+    document.getElementById('deepfakeResult').textContent = deep.toFixed(3);
+    document.getElementById('overallRiskResult').textContent = overall.toFixed(3);
+    if(!Number.isNaN(wholeProb)) document.getElementById('wholeDeepfakeProb').textContent = (wholeProb*100).toFixed(1)+'%';
+    if(!Number.isNaN(faceProb))  document.getElementById('faceDeepfakeProb').textContent  = (faceProb*100).toFixed(1)+'%';
+    if(!Number.isNaN(wholeReal)) document.getElementById('wholeRealProb').textContent     = (wholeReal*100).toFixed(1)+'%';
+    if(!Number.isNaN(faceReal))  document.getElementById('faceRealProb').textContent      = (faceReal*100).toFixed(1)+'%';
+
+    const finalEl = document.getElementById('finalDecisionResult');
+    finalEl.textContent = assessment;
+    let type='info';
+    if(isAuthentic) type='success'; else if(assessment==='SUSPICIOUS') type='warning'; else if(assessment==='DEEPFAKE') type='danger';
+    finalEl.className = `result-value ${type}`;
+
+    if(isAuthentic) updateStatus('authStatus','Live: Authentic','success');
+    else if(type==='warning') updateStatus('authStatus','Live: Suspicious','warning');
+    else updateStatus('authStatus','Live: Deepfake','danger');
+
+    // Progress hint
+    updateStepProgress(3, window.deepfakeDetectionComplete?'completed':'active',
+      window.deepfakeDetectionComplete?'Analysis Complete ✓':'Deepfake analysis running...');
+  }
+
+  // ========================= Init =========================
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateStatus('cameraStatus','Inactive','info');
+    updateStatus('faceStatus','No Face','warning');
+    updateStatus('deepfakeStatus','Inactive','warning');
+    updateStatus('authStatus','Pending','warning');
+    updateStatus('thrStatus','EAR: -, mEAR: -','info');
+    updateStepProgress(1,'active','Waiting for camera...');
+    updateStepProgress(2,'active','Waiting for face...');
+    updateStepProgress(3,'active','Waiting for analysis...');
+    updateStepProgress(4,'active','Waiting for report...');
+  });
+  </script>
+</body>
+</html>
+

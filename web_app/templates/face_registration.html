@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Registration - FaceGuard AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"], input[type="email"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .camera-container {
+            margin: 30px 0;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 300px;
+            border: 2px solid #e1e5e9;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 180px;
+            height: 180px;
+            border: 3px solid #667eea;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: pulse 2s infinite;
+            z-index: 10;
+        }
+
+        @keyframes pulse {
+            0% { border-color: #667eea; }
+            50% { border-color: #764ba2; }
+            100% { border-color: #667eea; }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin: 10px;
+            min-width: 140px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #a8a8a8 0%, #8b8b8b 100%);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .face-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .face-info h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .face-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .liveness-challenge {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
+        }
+
+        .liveness-challenge h4 {
+            margin: 0 0 15px 0;
+            color: #856404;
+            font-size: 1.2rem;
+        }
+
+        .liveness-challenge p {
+            margin: 10px 0;
+            color: #856404;
+            font-weight: 500;
+        }
+
+        .liveness-challenge ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .liveness-challenge li {
+            margin: 8px 0;
+            color: #856404;
+            font-weight: 500;
+        }
+
+        .liveness-challenge strong {
+            color: #d63384;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🛡️ FaceGuard AI</div>
+        <div class="subtitle">Face Registration System</div>
+
+        <form id="registrationForm">
+            <div class="form-group">
+                <label for="username">Username *</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email">
+            </div>
+
+            <div class="form-group">
+                <label for="fullName">Full Name</label>
+                <input type="text" id="fullName" name="fullName">
+            </div>
+
+            <div class="camera-container">
+                <video id="video" autoplay muted style="display: none;"></video>
+                <div id="cameraPlaceholder" style="text-align: center; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">📷</div>
+                    <div style="font-size: 1.2rem; font-weight: 600;">Camera Preview</div>
+                    <div style="font-size: 0.9rem; margin-top: 5px;">Click "Start Camera" to begin</div>
+                </div>
+                <div class="camera-overlay" style="display: none;"></div>
+            </div>
+
+            <div id="status" class="status hidden"></div>
+
+            <div id="faceInfo" class="face-info hidden">
+                <h4>Face Detection Info</h4>
+                <p id="faceDetails"></p>
+            </div>
+
+            <div id="livenessChallenge" class="liveness-challenge hidden">
+                <h4>🔒 Liveness Verification Required</h4>
+                <p>To ensure security, please perform the following actions:</p>
+                <ul>
+                    <li>✅ Look directly at the camera</li>
+                    <li>👁️ Blink naturally a few times</li>
+                    <li>😊 Make a slight smile or expression</li>
+                    <li>🔄 Move your head slightly left and right</li>
+                </ul>
+                <p><strong>Note:</strong> Photos, videos, or mobile phone screens will be rejected.</p>
+            </div>
+
+            <div class="btn-group">
+                <button type="button" id="startCamera" class="btn">Start Camera</button>
+                <button type="button" id="captureFace" class="btn secondary" disabled>Capture Face</button>
+            </div>
+            
+            <button type="button" id="registerUser" class="btn" disabled>Register User</button>
+        </form>
+
+        <div style="margin-top: 30px;">
+            <a href="/login" style="color: #667eea; text-decoration: none;">Already registered? Login here</a>
+        </div>
+    </div>
+
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        let stream = null;
+        let capturedFrame = null;
+
+        const startCameraBtn = document.getElementById('startCamera');
+        const captureFaceBtn = document.getElementById('captureFace');
+        const registerUserBtn = document.getElementById('registerUser');
+        const statusDiv = document.getElementById('status');
+        const faceInfoDiv = document.getElementById('faceInfo');
+        const faceDetailsP = document.getElementById('faceDetails');
+
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.classList.remove('hidden');
+        }
+
+        function hideStatus() {
+            statusDiv.classList.add('hidden');
+        }
+
+        function enableButton(button, enabled = true) {
+            button.disabled = !enabled;
+        }
+
+
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user'
+                    } 
+                });
+                video.srcObject = stream;
+                
+                // Show video and overlay, hide placeholder
+                video.style.display = 'block';
+                document.getElementById('cameraPlaceholder').style.display = 'none';
+                document.querySelector('.camera-overlay').style.display = 'block';
+                
+                // Show liveness challenge
+                document.getElementById('livenessChallenge').classList.remove('hidden');
+                
+                showStatus('Camera started! Please follow the liveness verification steps below.', 'info');
+                enableButton(startCameraBtn, false);
+                enableButton(captureFaceBtn, true);
+                
+            } catch (error) {
+                showStatus('Failed to access camera: ' + error.message, 'error');
+            }
+        });
+
+        captureFaceBtn.addEventListener('click', async () => {
+            try {
+                // Set canvas size to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Draw current frame to canvas
+                ctx.drawImage(video, 0, 0);
+                
+                // Convert to base64
+                const frameData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Simple face capture with basic validation
+                showStatus('Capturing face...', 'info');
+                enableButton(captureFaceBtn, false);
+                
+                // Basic validation (quick check)
+                const response = await fetch('/validate_face_capture', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        frame_data: frameData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.valid) {
+                    // Face captured successfully
+                    capturedFrame = frameData;
+                    showStatus('Face captured! You can now register.', 'success');
+                    enableButton(registerUserBtn, true);
+                    
+                    // Show face info
+                    faceInfoDiv.classList.remove('hidden');
+                    faceDetailsP.textContent = 'Face captured successfully. Ready for registration.';
+                } else {
+                    // Validation failed
+                    showStatus(result.error || 'Face validation failed', 'error');
+                    if (result.details) {
+                        showStatus(result.details, 'error');
+                    }
+                    enableButton(captureFaceBtn, true);
+                    enableButton(registerUserBtn, false);
+                    capturedFrame = null;
+                }
+                
+            } catch (error) {
+                showStatus('Failed to capture face: ' + error.message, 'error');
+                enableButton(captureFaceBtn, true);
+            }
+        });
+
+        registerUserBtn.addEventListener('click', async () => {
+            if (!capturedFrame) {
+                showStatus('Please capture your face first', 'error');
+                return;
+            }
+
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const fullName = document.getElementById('fullName').value.trim();
+
+            if (!username) {
+                showStatus('Username is required', 'error');
+                return;
+            }
+
+            try {
+                enableButton(registerUserBtn, false);
+                showStatus('Registering user...', 'info');
+
+                const response = await fetch('/register_face', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        full_name: fullName,
+                        frame_data: capturedFrame
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showStatus(result.message || 'Registration successful!', 'success');
+                    
+                    // Show face detection details
+                    if (result.face_info) {
+                        faceDetailsP.innerHTML = `
+                            <strong>Face Detection Details:</strong><br>
+                            Confidence: ${(result.face_info.confidence * 100).toFixed(1)}%<br>
+                            Face Size: ${result.face_info.bbox[2]}x${result.face_info.bbox[3]} pixels<br>
+                            Face Ratio: ${(result.face_info.face_ratio * 100).toFixed(1)}% of image
+                        `;
+                    }
+                    
+                    // Reset form
+                    document.getElementById('registrationForm').reset();
+                    capturedFrame = null;
+                    enableButton(registerUserBtn, false);
+                    enableButton(captureFaceBtn, true);
+                    
+                    // Redirect to login after 10 seconds
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 10000);
+                    
+                } else {
+                    // Handle anti-spoofing errors specially
+                    const errorMessage = result.error || result.message || 'Registration failed';
+                    showStatus(errorMessage, 'error');
+                    
+                    if (result.error && (result.error.includes('Spoofing attack') || result.error.includes('liveness'))) {
+                        if (result.details) {
+                            showStatus(result.details, 'error');
+                        }
+                        // Hide liveness challenge and reset
+                        document.getElementById('livenessChallenge').classList.add('hidden');
+                        enableButton(captureFaceBtn, true);
+                        enableButton(registerUserBtn, false);
+                        capturedFrame = null;
+                    }
+                    
+                    enableButton(registerUserBtn, true);
+                }
+
+            } catch (error) {
+                showStatus('Registration failed: ' + error.message, 'error');
+                enableButton(registerUserBtn, true);
+            }
+        });
+
+        // Clean up camera when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

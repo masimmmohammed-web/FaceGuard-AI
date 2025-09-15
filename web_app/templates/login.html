@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+  <title>Login - FaceGuard AI</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; display:flex; align-items:center; justify-content:center; color:#333;
+    }
+    .container {
+      background:white; border-radius:20px; box-shadow:0 20px 40px rgba(0,0,0,0.1);
+      padding:40px; max-width:600px; width:90%; text-align:center;
+    }
+    .logo { font-size:2.5rem; font-weight:bold; color:#667eea; margin-bottom:10px; }
+    .subtitle { color:#666; margin-bottom:30px; font-size:1.1rem; }
+
+    .auth-steps { display:flex; justify-content:space-between; margin:30px 0; position:relative; }
+    .auth-step { flex:1; text-align:center; position:relative; }
+    .step-circle {
+      width:60px; height:60px; border-radius:50%; background:#e1e5e9; color:#666;
+      display:flex; align-items:center; justify-content:center; font-size:1.5rem; margin:0 auto 10px; transition:all .3s ease;
+    }
+    .step-circle.active { background:#667eea; color:white; }
+    .step-circle.completed { background:#28a745; color:white; }
+    .step-title { font-weight:600; color:#333; margin-bottom:5px; }
+    .step-description { font-size:.9rem; color:#666; }
+
+    .camera-container { margin:30px 0; position:relative; display:inline-block; }
+    #video {
+      width:100%; max-width:500px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2);
+      display:block;
+    }
+
+    .btn {
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; border:none;
+      padding:15px 30px; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer;
+      transition:transform .2s ease; margin:10px;
+    }
+    .btn:hover { transform:translateY(-2px); }
+    .btn:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+    .btn.secondary { background:#6c757d; }
+
+    .status { margin:20px 0; padding:15px; border-radius:10px; font-weight:600; }
+    .status.success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+    .status.error   { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+    .status.info    { background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; }
+    .hidden { display:none; }
+
+    .auth-info { background:#f8f9fa; padding:20px; border-radius:10px; margin:20px 0; text-align:left; }
+    .auth-info h4 { color:#667eea; margin-bottom:10px; }
+    .auth-info p { margin:5px 0; color:#666; }
+
+    .progress-bar { width:100%; height:6px; background:#e1e5e9; border-radius:3px; margin:20px 0; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); width:0%; transition:width .3s ease; }
+
+    /* OVERLAY CANVAS FOR PUPIL MARKERS */
+    .pupil-overlay {
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      pointer-events:none; z-index:10;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🛡️ FaceGuard AI</div>
+    <div class="subtitle">Secure Face & Blink Authentication</div>
+
+    <div class="auth-steps">
+      <div class="auth-step">
+        <div class="step-circle" id="step1">1</div>
+        <div class="step-title">Face Recognition</div>
+        <div class="step-description">Look at the camera</div>
+      </div>
+      <div class="auth-step">
+        <div class="step-circle" id="step2">2</div>
+        <div class="step-title">Blink Detection</div>
+        <div class="step-description">Blink naturally</div>
+      </div>
+      <div class="auth-step">
+        <div class="step-circle" id="step3">3</div>
+        <div class="step-title">Access Granted</div>
+        <div class="step-description">Welcome to dashboard</div>
+      </div>
+    </div>
+
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div class="camera-container" id="camWrap">
+      <video id="video" autoplay muted playsinline></video>
+      <!-- Pupil markers overlay -->
+      <canvas id="pupilCanvas" class="pupil-overlay"></canvas>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+
+    <div id="authInfo" class="auth-info hidden">
+      <h4>Authentication Status</h4>
+      <p id="authDetails"></p>
+    </div>
+
+    <button id="startAuth" class="btn">Start Authentication</button>
+    <button id="startCamera" class="btn secondary" disabled>Start Camera</button>
+    <button id="retryAuth" class="btn secondary hidden">Retry Authentication</button>
+
+    <div style="margin-top: 30px;">
+      <a href="/register" style="color: #667eea; text-decoration: none;">Not registered? Register here</a>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Stable per-client key (shared across routes) ----------
+    const CLIENT_KEY = (() => {
+      const k = localStorage.getItem('fg_client_key');
+      if (k) return k;
+      const nk = 'web-' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('fg_client_key', nk);
+      return nk;
+    })();
+
+    // ---------- DOM ----------
+    const video         = document.getElementById('video');
+    const pupilCanvas   = document.getElementById('pupilCanvas');
+    const pupilCtx      = pupilCanvas.getContext('2d', { willReadFrequently:true });
+
+    const startAuthBtn  = document.getElementById('startAuth');
+    const startCameraBtn= document.getElementById('startCamera');
+    const retryAuthBtn  = document.getElementById('retryAuth');
+    const statusDiv     = document.getElementById('status');
+    const authInfoDiv   = document.getElementById('authInfo');
+    const authDetailsP  = document.getElementById('authDetails');
+    const progressFill  = document.getElementById('progressFill');
+
+    const step1Circle   = document.getElementById('step1');
+    const step2Circle   = document.getElementById('step2');
+    const step3Circle   = document.getElementById('step3');
+
+    // ---------- Work canvas (fixed 320x240) for all server calls ----------
+    const workCanvas = document.createElement('canvas');
+    const workCtx    = workCanvas.getContext('2d', { willReadFrequently:true });
+    workCanvas.width = 480;
+    workCanvas.height= 360;
+    function grabWorkFrame(q = 0.8) {
+      if (!video.videoWidth) return null;
+      workCtx.drawImage(video, 0, 0, workCanvas.width, workCanvas.height);
+      return workCanvas.toDataURL('image/jpeg', q);
+    }
+
+    // ---------- UI helpers ----------
+    function showStatus(message, type = 'info') {
+      statusDiv.textContent = message;
+      statusDiv.className = `status ${type}`;
+      statusDiv.classList.remove('hidden');
+    }
+    function hideStatus() { statusDiv.classList.add('hidden'); }
+    // Detect and handle ephemeral auth-session expiry without alarming the user
+    function isSessionExpiryMessage(msg){
+      if (!msg) return false;
+      const m = String(msg).toLowerCase();
+      return m.includes('invalid or expired session') || m.includes('session expired') || m.includes('timeout');
+    }
+    async function silentlyRestartSession(){
+      try {
+        const resp = await fetch('/start_auth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ client_key: CLIENT_KEY }) });
+        const res = await resp.json();
+        if (res.success) {
+          authSessionId = res.session_id;
+          enableButton(startCameraBtn, true);
+          updateStep(1);
+          showStatus('Session refreshed. Please continue.', 'info');
+          return true;
+        }
+      } catch(_) {}
+      return false;
+    }
+    function enableButton(button, enabled = true) { button.disabled = !enabled; }
+    function updateProgress(step) { progressFill.style.width = ((step/3)*100) + '%'; }
+    function updateStep(step) {
+      [step1Circle, step2Circle, step3Circle].forEach(c => c.classList.remove('active', 'completed'));
+      if (step >= 1) step1Circle.classList.add(step >= 2 ? 'completed' : 'active');
+      if (step >= 2) step2Circle.classList.add(step >= 3 ? 'completed' : 'active');
+      if (step >= 3) step3Circle.classList.add('completed');
+      updateProgress(step);
+    }
+    function showAuthInfo(message) { authDetailsP.textContent = message; authInfoDiv.classList.remove('hidden'); }
+
+    // ---------- Overlay sizing ----------
+    function sizeOverlayToVideo() {
+      // Use displayed size to keep drawing aligned with the element on screen
+      const w = video.clientWidth  || video.videoWidth  || 640;
+      const h = video.clientHeight || video.videoHeight || 480;
+      pupilCanvas.width  = w;
+      pupilCanvas.height = h;
+    }
+    const resizeObserver = new ResizeObserver(sizeOverlayToVideo);
+    resizeObserver.observe(video);
+
+    // ---------- Drawing helpers (handle normalized or pixel coords) ----------
+    const SRC_W = workCanvas.width;
+    const SRC_H = workCanvas.height;
+
+    function isNormRect(bb){
+      if (!bb || bb.length !== 4) return false;
+      const [, , w, h] = bb.map(Number);
+      // treat as normalized if width/height look <= 1.5
+      return w <= 1.5 && h <= 1.5;
+    }
+
+    function toCanvasRect(bb) {
+      // Convert bbox (either normalized to frame or pixel in 320x240) to canvas display coords
+      const cw = pupilCanvas.width, ch = pupilCanvas.height;
+      const sx = cw / SRC_W, sy = ch / SRC_H;
+
+      let [x, y, w, h] = bb.map(Number);
+      if (isNormRect(bb)) {
+        x *= cw; y *= ch; w *= cw; h *= ch;
+      } else {
+        x *= sx; y *= sy; w *= sx; h *= sy;
+      }
+      return [x, y, w, h];
+    }
+
+    // Convert absolute pixel landmarks to normalized [0,1] within the given eye bbox if needed
+    function normalizeLandmarksIfNeeded(landmarks, eyeBB) {
+      if (!Array.isArray(landmarks) || !eyeBB) return [];
+      const likelyPixels = landmarks.some(pt => Array.isArray(pt) && pt.length === 2 && (pt[0] > 1 || pt[1] > 1));
+      if (!likelyPixels) return landmarks; // already normalized
+
+      // Convert eye bbox to pixel space of the source frame (workCanvas)
+      let [ex, ey, ew, eh] = eyeBB.map(Number);
+      if (isNormRect(eyeBB)) {
+        ex *= SRC_W; ey *= SRC_H; ew *= SRC_W; eh *= SRC_H;
+      }
+      const invW = ew > 0 ? 1/ew : 0; const invH = eh > 0 ? 1/eh : 0;
+      return landmarks.map(([x, y]) => [ (x - ex) * invW, (y - ey) * invH ]);
+    }
+
+    function drawLandmarksRelative(landmarks, eyeBB) {
+      if (!Array.isArray(landmarks) || landmarks.length < 3 || !eyeBB) return;
+      const [ex,ey,ew,eh] = toCanvasRect(eyeBB);
+      pupilCtx.strokeStyle = '#00FFAA';
+      pupilCtx.fillStyle   = '#00FFAA';
+      pupilCtx.lineWidth   = 1.5;
+
+      pupilCtx.beginPath();
+      for (let i=0;i<landmarks.length;i++){
+        const [lx, ly] = landmarks[i]; // expected normalized in [0,1] within eye bbox
+        const x = ex + lx * ew;
+        const y = ey + ly * eh;
+        if (i === 0) pupilCtx.moveTo(x, y); else pupilCtx.lineTo(x, y);
+        pupilCtx.fillRect(x-1, y-1, 2, 2);
+      }
+      pupilCtx.closePath();
+      pupilCtx.stroke();
+    }
+
+    function drawPupilRelative(pupil, eyeBB) {
+      if (!pupil || !eyeBB) return;
+      const [ex,ey,ew,eh] = toCanvasRect(eyeBB);
+      let px = pupil[0], py = pupil[1]; // normalized [0,1] within eye bbox (preferred)
+      // If server returns absolute pixels (rare), convert to relative quickly
+      if (px > 1 || py > 1) {
+        // Treat as pixels in source frame space (map to canvas)
+        const cw = pupilCanvas.width, ch = pupilCanvas.height;
+        const sx = cw / SRC_W, sy = ch / SRC_H;
+        const cx = px * sx, cy = py * sy;
+        pupilCtx.fillStyle = '#FFAA00';
+        pupilCtx.beginPath(); pupilCtx.arc(cx, cy, 3, 0, Math.PI*2); pupilCtx.fill();
+        return;
+      }
+      const cx = ex + px * ew;
+      const cy = ey + py * eh;
+      pupilCtx.fillStyle = '#FFAA00';
+      pupilCtx.beginPath(); pupilCtx.arc(cx, cy, 3, 0, Math.PI*2); pupilCtx.fill();
+    }
+
+    // --- Helper to map eye landmarks from bbox to canvas coordinates ---
+    function mapEyeLandmarksToCanvas(landmarks, eyeBB) {
+      // Convert normalized [0,1] within eye bbox to canvas coordinates
+      if (!Array.isArray(landmarks) || !eyeBB) return [];
+      const [ex, ey, ew, eh] = toCanvasRect(eyeBB);
+      return landmarks.map(([lx, ly]) => [ex + lx * ew, ey + ly * eh]);
+    }
+
+    function drawPupilMarkers(coords) {
+      if (!coords) return;
+      sizeOverlayToVideo();
+      pupilCtx.clearRect(0, 0, pupilCanvas.width, pupilCanvas.height);
+
+      // Face bbox (optional)
+      if (coords.face_bbox) {
+        const [fx,fy,fw,fh] = toCanvasRect(coords.face_bbox);
+        pupilCtx.strokeStyle = '#00ff00'; pupilCtx.lineWidth = 2;
+        pupilCtx.strokeRect(fx,fy,fw,fh);
+      }
+
+      // Eye bboxes
+      if (coords.left_eye_bbox) {
+        const [x,y,w,h] = toCanvasRect(coords.left_eye_bbox);
+        pupilCtx.strokeStyle = '#00FFFF'; pupilCtx.lineWidth = 2;
+        pupilCtx.strokeRect(x,y,w,h);
+      }
+      if (coords.right_eye_bbox) {
+        const [x,y,w,h] = toCanvasRect(coords.right_eye_bbox);
+        pupilCtx.strokeStyle = '#00FFFF'; pupilCtx.lineWidth = 2;
+        pupilCtx.strokeRect(x,y,w,h);
+      }
+
+      // Landmarks (FaceGuard style)
+      if (coords.left_eye_landmarks && coords.left_eye_bbox) {
+        const lNorm = normalizeLandmarksIfNeeded(coords.left_eye_landmarks, coords.left_eye_bbox);
+        drawLandmarksRelative(lNorm, coords.left_eye_bbox);
+      }
+      if (coords.right_eye_landmarks && coords.right_eye_bbox) {
+        const rNorm = normalizeLandmarksIfNeeded(coords.right_eye_landmarks, coords.right_eye_bbox);
+        drawLandmarksRelative(rNorm, coords.right_eye_bbox);
+      }
+
+      // Eye markers (Live Analysis style, mapped to canvas)
+      if (coords.left_eye_landmarks && coords.left_eye_bbox) {
+        const lNorm = normalizeLandmarksIfNeeded(coords.left_eye_landmarks, coords.left_eye_bbox);
+        const pts = mapEyeLandmarksToCanvas(lNorm, coords.left_eye_bbox);
+        drawEyeMarkers(pupilCtx, pts, 1, 1, pupilCanvas.width, pupilCanvas.height, true);
+      }
+      if (coords.right_eye_landmarks && coords.right_eye_bbox) {
+        const rNorm = normalizeLandmarksIfNeeded(coords.right_eye_landmarks, coords.right_eye_bbox);
+        const pts = mapEyeLandmarksToCanvas(rNorm, coords.right_eye_bbox);
+        drawEyeMarkers(pupilCtx, pts, 1, 1, pupilCanvas.width, pupilCanvas.height, true);
+      }
+
+      // Pupils
+      if (coords.left_pupil && coords.left_eye_bbox)
+        drawPupilRelative(coords.left_pupil, coords.left_eye_bbox);
+      if (coords.right_pupil && coords.right_eye_bbox)
+        drawPupilRelative(coords.right_pupil, coords.right_eye_bbox);
+    }
+
+    function clearPupilMarkers(){
+      pupilCtx.clearRect(0,0,pupilCanvas.width,pupilCanvas.height);
+    }
+
+    // ---------- Camera ----------
+    let stream = null;
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+    }
+
+    // ---------- Pupil tracking via /analyze_frame ----------
+    let pupilTrackingInterval = null;
+    function startPupilTracking() {
+      if (pupilTrackingInterval) return;
+      pupilTrackingInterval = setInterval(async () => {
+        const frameData = grabWorkFrame(0.8);
+        if (!frameData) return;
+        try {
+          const response = await fetch('/analyze_frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frame_data: frameData, client_key: CLIENT_KEY, debug_overlay: true })
+          });
+          if (!response.ok) return;
+          const data = await response.json();
+          if (!data.success || !data.eye_tracking) return;
+
+          const et = data.eye_tracking, eyes = et.eyes || {}, pupils = et.pupils || {};
+          const coords = {
+            left_pupil: pupils.left_pupil,        // [x_rel, y_rel] within left eye bbox
+            right_pupil: pupils.right_pupil,      // [x_rel, y_rel] within right eye bbox
+            left_eye_bbox: eyes.left_bbox,        // [x,y,w,h] normalized to frame OR pixels in 320x240
+            right_eye_bbox: eyes.right_bbox,
+            left_eye_landmarks: eyes.left_landmarks,   // [[x_rel,y_rel], ...] within left eye bbox
+            right_eye_landmarks: eyes.right_landmarks,
+            face_bbox: data.face_detection ? data.face_detection.bbox : null,
+            eyes_detected: !!eyes.detected,
+            detection_method: eyes.method,
+            gaze_direction: pupils.gaze_direction
+          };
+          drawPupilMarkers(coords);
+        } catch (_) { /* ignore transient errors */ }
+      }, 120); // ~8 fps
+    }
+    function stopPupilTracking() {
+      if (pupilTrackingInterval) { clearInterval(pupilTrackingInterval); pupilTrackingInterval=null; }
+      clearPupilMarkers();
+    }
+
+    // ---------- Blink live loop ----------
+    let blinkTimer = null;
+    function stopBlinkLoop(){ if (blinkTimer){ clearInterval(blinkTimer); blinkTimer=null; } }
+    // Client-side blink inference (two fallbacks):
+    // 1) Edge detection using server 'closed' flags (close -> open with min duration)
+    // 2) Percent-drop + rebound on raw mEAR/EAR over ~2s buffer
+    let clientClosedSince = null;
+    let clientLastFinalizeAt = 0;
+    const BUF_WINDOW_MS = 2000, DROP_RATIO_MIN = 0.28, REBOUND_RATIO_MIN = 0.18, DROP_MIN_MS = 40, DROP_MAX_MS = 700;
+    let rawBuf = [];            // [{t, v}]
+    let dropStartedAt = null;   // timestamp
+    let dropFrom = null;        // recent max when drop began
+    let dropMin = null;         // lowest seen during drop
+
+    async function startBlinkLoop() {
+      if (!authSessionId) { showStatus('No authentication session', 'error'); return; }
+      showStatus('Please blink naturally...', 'info');
+      stopBlinkLoop();
+
+      blinkTimer = setInterval(async () => {
+        const frameData = grabWorkFrame(0.8);
+        if (!frameData) return;
+
+        try {
+          const r = await fetch('/blink_live', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ session_id: authSessionId, frame_data: frameData, client_key: CLIENT_KEY })
+          });
+          const data = await r.json();
+          if (!data.success) return;
+
+          const b = data.blink_info || {};
+          const sess = data.session_status || {};
+          try { window.lastBlink = data; } catch(_) {}
+
+          // Update client-side closed window tracking (server-gated)
+          const nowTs = Date.now();
+          const closedAny = !!(b.closed && (b.closed.any === true || b.closed.ear === true || b.closed.mear === true));
+          const closedMinMs = (b.thresholds && typeof b.thresholds.closed_min_ms === 'number') ? b.thresholds.closed_min_ms : 90;
+          const refractoryMs = (b.thresholds && typeof b.thresholds.refractory_ms === 'number') ? b.thresholds.refractory_ms : 400;
+          if (closedAny && clientClosedSince === null) {
+            clientClosedSince = nowTs;
+          }
+          let clientEdgeBlink = false;
+          if (!closedAny && clientClosedSince !== null) {
+            const closedDur = nowTs - clientClosedSince;
+            if (closedDur >= closedMinMs && (nowTs - clientLastFinalizeAt) >= refractoryMs) {
+              clientEdgeBlink = true;
+            }
+            clientClosedSince = null;
+          }
+
+          // Update percent-drop fallback using raw mEAR/EAR
+          const measure = (typeof b.mear_raw === 'number' && !Number.isNaN(b.mear_raw)) ? b.mear_raw : b.ear_raw;
+          if (typeof measure === 'number' && !Number.isNaN(measure)) {
+            rawBuf.push({ t: nowTs, v: measure });
+            const cutoff = nowTs - BUF_WINDOW_MS;
+            while (rawBuf.length && rawBuf[0].t < cutoff) rawBuf.shift();
+            const recentMax = rawBuf.reduce((m, p) => Math.max(m, p.v), 0);
+            if (dropStartedAt === null && recentMax > 0 && (recentMax - measure) / recentMax >= DROP_RATIO_MIN) {
+              dropStartedAt = nowTs; dropFrom = recentMax; dropMin = measure;
+            } else if (dropStartedAt !== null) {
+              if (measure < dropMin) dropMin = measure;
+              const dropMs = nowTs - dropStartedAt;
+              if (dropFrom && dropFrom > 0) {
+                const rebound = 1.0 - (dropFrom - measure) / dropFrom; // toward open
+                if (dropMs >= DROP_MIN_MS && dropMs <= DROP_MAX_MS && rebound >= (1 - REBOUND_RATIO_MIN) && (nowTs - clientLastFinalizeAt) >= refractoryMs) {
+                  clientEdgeBlink = true;
+                  dropStartedAt = null; dropFrom = null; dropMin = null;
+                }
+              }
+              if (dropMs > DROP_MAX_MS) { dropStartedAt = null; dropFrom = null; dropMin = null; }
+            }
+          }
+
+          const pct = (b.closed && typeof b.closed.pct_state === 'string') ? b.closed.pct_state : 'none';
+          const strongBlink = Boolean(b.detected) && (typeof b.confidence === 'number' ? b.confidence >= 0.5 : true);
+          const shouldFinalize = strongBlink || Boolean(sess.blink_detected) || clientEdgeBlink || (pct === 'rise');
+          if (shouldFinalize) {
+            stopBlinkLoop(); // freeze on blink
+            clientLastFinalizeAt = nowTs;
+            try { console.debug('Finalize blink:', { strongBlink, clientEdgeBlink, pct, sessBlink: Boolean(sess.blink_detected) }); } catch(_) {}
+
+            const fin = await fetch('/authenticate_blink', {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              credentials: 'same-origin',
+              body: JSON.stringify({ session_id: authSessionId, frame_data: frameData, client_key: CLIENT_KEY })
+            });
+            const finRes = await fin.json();
+
+            if (fin.ok && finRes.success) {
+              showStatus('Authentication successful! Redirecting...', 'success');
+              updateStep(3);
+              showAuthInfo('Authentication completed successfully!');
+              localStorage.setItem('auth_token', finRes.session_token);
+              try { document.cookie = `session_token=${finRes.session_token}; Path=/; Max-Age=${60*60*8}; SameSite=Lax`; } catch(_) {}
+              stopPupilTracking();
+              setTimeout(() => {
+                const target = finRes.redirect_url || '/dashboard';
+                window.location.assign(target);
+              }, 1200);
+            } else {
+              if (isSessionExpiryMessage(finRes.error)) {
+                await silentlyRestartSession();
+                startFaceAuthenticationLoop();
+              } else {
+                showStatus(finRes.error || 'Blink finalize failed', 'error');
+              }
+            }
+          }
+        } catch (_) {}
+      }, 120);
+    }
+
+    // ---------- Face auth loop ----------
+    let authSessionId = null;
+
+    async function startFaceAuthenticationLoop(maxTries = 15, delayMs = 700) {
+      for (let i = 0; i < maxTries; i++) {
+        const ok = await tryFaceAuthenticationOnce();
+        if (ok) return true;
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+      showStatus('Could not recognize a registered user. Try better lighting or re-register.', 'error');
+      enableButton(retryAuthBtn, true);
+      retryAuthBtn.classList.remove('hidden');
+      return false;
+    }
+
+    async function tryFaceAuthenticationOnce() {
+      if (!authSessionId) { showStatus('No authentication session', 'error'); return false; }
+      const frameData = grabWorkFrame(0.8);
+      if (!frameData) return false;
+
+      const response = await fetch('/authenticate_face', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: authSessionId, frame_data: frameData, client_key: CLIENT_KEY })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        showStatus(`Face recognized as ${result.user_info.username}! Now please blink.`, 'success');
+        updateStep(2);
+        // Show only username; hide other fields
+        showAuthInfo(`User: ${result.user_info.username}`);
+        if (result.pupil_coords) drawPupilMarkers(result.pupil_coords);
+        setTimeout(() => startBlinkLoop(), 650); // small calibration before blink loop
+        return true;
+      } else {
+        if (isSessionExpiryMessage(result.error)) {
+          await silentlyRestartSession();
+          return false;
+        } else if (result.best_candidate && typeof result.best_candidate.similarity === 'number') {
+          showStatus(`No match above threshold (best=${result.best_candidate.username || 'unknown'} ${result.best_candidate.similarity.toFixed(2)}). Retrying...`, 'info');
+        } else {
+          showStatus(result.error || 'Face recognition failed, retrying...', 'info');
+        }
+        return false;
+      }
+    }
+
+    // ---------- Button handlers ----------
+    startAuthBtn.addEventListener('click', async () => {
+      try {
+        enableButton(startAuthBtn, false);
+        showStatus('Starting authentication...', 'info');
+        updateStep(1);
+
+        const response = await fetch('/start_auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_key: CLIENT_KEY })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          authSessionId = result.session_id;
+          showStatus('Session started. Start your camera.', 'success');
+          enableButton(startCameraBtn, true);
+          // Session ID intentionally not displayed to user
+        } else {
+          showStatus(result.error || 'Failed to start authentication', 'error');
+          enableButton(startAuthBtn, true);
+        }
+      } catch (error) {
+        showStatus('Failed to start authentication: ' + error.message, 'error');
+        enableButton(startAuthBtn, true);
+      }
+    });
+
+    startCameraBtn.addEventListener('click', async () => {
+      try {
+        const constraints = { video: { width: 640, height: 480, facingMode: 'user' }, audio: false };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+
+        showStatus('Camera starting...', 'info');
+        enableButton(startCameraBtn, false);
+
+        await new Promise((resolve) => {
+          video.addEventListener('loadedmetadata', () => {
+            showStatus('Camera ready. Looking for your face...', 'success');
+            sizeOverlayToVideo();
+            setTimeout(resolve, 400);
+          }, { once: true });
+        });
+
+        startPupilTracking();
+        startFaceAuthenticationLoop();
+      } catch (error) {
+        showStatus('Failed to access camera: ' + error.message, 'error');
+      }
+    });
+
+    // Retry / cleanup
+    retryAuthBtn.addEventListener('click', () => {
+      authSessionId = null;
+      updateStep(0);
+      hideStatus();
+      authInfoDiv.classList.add('hidden');
+      enableButton(startAuthBtn, true);
+      enableButton(startCameraBtn, false);
+      retryAuthBtn.classList.add('hidden');
+      stopBlinkLoop();
+      stopPupilTracking();
+      stopCamera();
+      clearPupilMarkers();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      stopBlinkLoop();
+      stopPupilTracking();
+      stopCamera();
+    });
+
+    // ======= Pupil/Eye Marker Drawing Helpers (from live_analysis.html) =======
+    function distance2D(a, b) {
+      const dx = a[0] - b[0], dy = a[1] - b[1];
+      return Math.hypot(dx, dy);
+    }
+    function rotatePoints(pts, angle, c) {
+      const cos = Math.cos(angle), sin = Math.sin(angle), [cx, cy] = c;
+      return pts.map(([x, y]) => {
+        const rx = x - cx, ry = y - cy;
+        return [rx * cos - ry * sin + cx, rx * sin + ry * cos + cy];
+      });
+    }
+    function earFrom6(pts) {
+      const v1 = distance2D(pts[1], pts[5]);
+      const v2 = distance2D(pts[2], pts[4]);
+      const h = distance2D(pts[0], pts[3]);
+      return (v1 + v2) / (2 * h + 1e-6);
+    }
+    function mEAR(pts) {
+      const p0 = pts[0], p3 = pts[3];
+      const ang = Math.atan2(p3[1] - p0[1], p3[0] - p0[0]);
+      const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+      const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+      const r = rotatePoints(pts, -ang, [cx, cy]);
+      return earFrom6(r);
+    }
+
+    // Draw eye landmarks and pupil marker on overlay canvas
+    function drawEyeMarkers(ctx, pts, sx, sy, wOv, hOv, normalized) {
+      if (!Array.isArray(pts) || pts.length < 3) return;
+      ctx.strokeStyle = '#0066FF'; ctx.lineWidth = 1.2; ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const [x, y] = normalized ? [pts[i][0] * wOv, pts[i][1] * hOv] : [pts[i][0] * sx, pts[i][1] * sy];
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = '#FFFF00';
+      for (let i = 0; i < pts.length; i++) {
+        const [x, y] = normalized ? [pts[i][0] * wOv, pts[i][1] * hOv] : [pts[i][0] * sx, pts[i][1] * sy];
+        ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  </script>
+</body>
+</html>

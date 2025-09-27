@@ -59,7 +59,7 @@ EMA_ALPHA           = 0.6     # smoothing for stability (for display only)
 
 # Debug overlay config
 DEBUG_OVERLAY_DEFAULT = True   # set False in production
-DEBUG_JPEG_QUALITY    = 85
+DEBUG_JPEG_QUALITY    = 65
 
 # Landmark index constants for dlib 68-point model (for reference)
 L_start, L_end = 36, 42
@@ -462,8 +462,8 @@ def analyze_frame():
         try:
             h, w = frame.shape[:2]
             max_dim = max(h, w)
-            if max_dim > 720:
-                scale = 720.0 / float(max_dim)
+            if max_dim > 360:
+                scale = 360.0 / float(max_dim)
                 frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
         except Exception:
             pass
@@ -618,3 +618,4 @@ def health_check():
         })
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e), 'timestamp': time.time()}), 500
+

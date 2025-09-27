@@ -409,32 +409,40 @@
     let dropMin = null;         // lowest seen during drop
 
     async function startBlinkLoop() {
-      if (!authSessionId) { showStatus('No authentication session', 'error'); return; }
+      if (!authSessionId) { 
+        showStatus('No authentication session', 'error'); 
+        return; 
+      }
       showStatus('Please blink naturally...', 'info');
       stopBlinkLoop();
-
+    
       blinkTimer = setInterval(async () => {
         const frameData = grabWorkFrame(0.8);
         if (!frameData) return;
-
+    
         try {
           const r = await fetch('/blink_live', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ session_id: authSessionId, frame_data: frameData, client_key: CLIENT_KEY })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              session_id: authSessionId, 
+              frame_data: frameData, 
+              client_key: CLIENT_KEY 
+            })
           });
           const data = await r.json();
           if (!data.success) return;
-
+    
           const b = data.blink_info || {};
           const sess = data.session_status || {};
           try { window.lastBlink = data; } catch(_) {}
-
-          // Update client-side closed window tracking (server-gated)
+    
+          // --- Client-side blink tracking ---
           const nowTs = Date.now();
           const closedAny = !!(b.closed && (b.closed.any === true || b.closed.ear === true || b.closed.mear === true));
           const closedMinMs = (b.thresholds && typeof b.thresholds.closed_min_ms === 'number') ? b.thresholds.closed_min_ms : 90;
           const refractoryMs = (b.thresholds && typeof b.thresholds.refractory_ms === 'number') ? b.thresholds.refractory_ms : 400;
+    
           if (closedAny && clientClosedSince === null) {
             clientClosedSince = nowTs;
           }
@@ -442,17 +450,20 @@
           if (!closedAny && clientClosedSince !== null) {
             const closedDur = nowTs - clientClosedSince;
             if (closedDur >= closedMinMs && (nowTs - clientLastFinalizeAt) >= refractoryMs) {
-              clientEdgeBlink = true;
+              clientEdgeBlink = true;  // ✅ close → open cycle = blink
             }
             clientClosedSince = null;
           }
-
-          // Update percent-drop fallback using raw mEAR/EAR
-          const measure = (typeof b.mear_raw === 'number' && !Number.isNaN(b.mear_raw)) ? b.mear_raw : b.ear_raw;
+    
+          // --- Percent-drop fallback (EAR / mEAR) ---
+          const measure = (typeof b.mear_raw === 'number' && !Number.isNaN(b.mear_raw)) 
+            ? b.mear_raw 
+            : b.ear_raw;
           if (typeof measure === 'number' && !Number.isNaN(measure)) {
             rawBuf.push({ t: nowTs, v: measure });
             const cutoff = nowTs - BUF_WINDOW_MS;
             while (rawBuf.length && rawBuf[0].t < cutoff) rawBuf.shift();
+    
             const recentMax = rawBuf.reduce((m, p) => Math.max(m, p.v), 0);
             if (dropStartedAt === null && recentMax > 0 && (recentMax - measure) / recentMax >= DROP_RATIO_MIN) {
               dropStartedAt = nowTs; dropFrom = recentMax; dropMin = measure;
@@ -460,38 +471,52 @@
               if (measure < dropMin) dropMin = measure;
               const dropMs = nowTs - dropStartedAt;
               if (dropFrom && dropFrom > 0) {
-                const rebound = 1.0 - (dropFrom - measure) / dropFrom; // toward open
-                if (dropMs >= DROP_MIN_MS && dropMs <= DROP_MAX_MS && rebound >= (1 - REBOUND_RATIO_MIN) && (nowTs - clientLastFinalizeAt) >= refractoryMs) {
-                  clientEdgeBlink = true;
+                const rebound = 1.0 - (dropFrom - measure) / dropFrom;
+                if (dropMs >= DROP_MIN_MS && dropMs <= DROP_MAX_MS && rebound >= (1 - REBOUND_RATIO_MIN) 
+                    && (nowTs - clientLastFinalizeAt) >= refractoryMs) {
+                  clientEdgeBlink = true; // ✅ additional fallback
                   dropStartedAt = null; dropFrom = null; dropMin = null;
                 }
               }
               if (dropMs > DROP_MAX_MS) { dropStartedAt = null; dropFrom = null; dropMin = null; }
             }
           }
-
+    
+          // --- Server-assist signals ---
           const pct = (b.closed && typeof b.closed.pct_state === 'string') ? b.closed.pct_state : 'none';
           const strongBlink = Boolean(b.detected) && (typeof b.confidence === 'number' ? b.confidence >= 0.5 : true);
-          const shouldFinalize = strongBlink || Boolean(sess.blink_detected) || clientEdgeBlink || (pct === 'rise');
+    
+          // --- Finalize condition (simplified) ---
+          const shouldFinalize = clientEdgeBlink || strongBlink || Boolean(sess.blink_detected) || (pct === 'rise');
+    
           if (shouldFinalize) {
-            stopBlinkLoop(); // freeze on blink
+            stopBlinkLoop();
             clientLastFinalizeAt = nowTs;
-            try { console.debug('Finalize blink:', { strongBlink, clientEdgeBlink, pct, sessBlink: Boolean(sess.blink_detected) }); } catch(_) {}
-
+    
+            console.debug('Finalize blink → calling /authenticate_blink', { 
+              strongBlink, clientEdgeBlink, pct, sessBlink: Boolean(sess.blink_detected) 
+            });
+    
             const fin = await fetch('/authenticate_blink', {
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               credentials: 'same-origin',
-              body: JSON.stringify({ session_id: authSessionId, frame_data: frameData, client_key: CLIENT_KEY })
+              body: JSON.stringify({ 
+                session_id: authSessionId, 
+                frame_data: frameData, 
+                client_key: CLIENT_KEY 
+              })
             });
             const finRes = await fin.json();
-
+    
             if (fin.ok && finRes.success) {
               showStatus('Authentication successful! Redirecting...', 'success');
               updateStep(3);
               showAuthInfo('Authentication completed successfully!');
               localStorage.setItem('auth_token', finRes.session_token);
-              try { document.cookie = `session_token=${finRes.session_token}; Path=/; Max-Age=${60*60*8}; SameSite=Lax`; } catch(_) {}
+              try { 
+                document.cookie = `session_token=${finRes.session_token}; Path=/; Max-Age=${60*60*8}; SameSite=Lax`; 
+              } catch(_) {}
               stopPupilTracking();
               setTimeout(() => {
                 const target = finRes.redirect_url || '/dashboard';
@@ -674,4 +699,5 @@
     }
   </script>
 </body>
+
 </html>

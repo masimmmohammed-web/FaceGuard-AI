@@ -202,7 +202,7 @@
   // ========================= Tunables & Globals =========================
   const REQUIRED_FACE_DETECTIONS = 3;
   const DEEPFAKE_TICK_MS = 3000;
-  const EYE_LOOP_INTERVAL_MS = 60; // ~8 FPS to catch blinks
+  const EYE_LOOP_INTERVAL_MS = 30; // ~8 FPS to catch blinks
   const EMA_ALPHA = 0.4;
 
   // Persist a per-client key so server-side blink buffers are stable
@@ -667,4 +667,5 @@
   </script>
 </body>
 </html>
+
 

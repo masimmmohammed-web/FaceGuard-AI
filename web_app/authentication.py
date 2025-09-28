@@ -547,55 +547,56 @@ def authenticate_face():
 
 @authentication.route('/authenticate_blink', methods=['POST'])
 def authenticate_blink():
-    global auth_session
-    if not auth_session:
-        return jsonify({'success': False, 'error': 'No active authentication session'}), 400
-
-    data = request.get_json()
-    frame_data = data.get("frame_data")
-    if not frame_data:
-        return jsonify({'success': False, 'error': 'No frame data received'}), 400
-
-    # --- decode frame
     try:
-        header, encoded = frame_data.split(",", 1)
-        img_bytes = base64.b64decode(encoded)
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Frame decode failed: {e}'}), 400
+        data = request.get_json() or {}
+        session_id = data.get("session_id")
+        frame_data = data.get("frame_data")
 
-    # --- run blink detection
-    blink_info = _blink_via_mear(frame, auth_session)
-    if blink_info is None:
-        return jsonify({'success': False, 'error': 'Blink processing failed'}), 500
+        if not session_id:
+            return jsonify({'success': False, 'error': 'Session ID required'}), 400
+        if not frame_data:
+            return jsonify({'success': False, 'error': 'No frame data received'}), 400
 
-    # --- update session state
-    blink_detected = bool(blink_info.get("detected"))
-    if blink_detected:
-        auth_session.blink_count += 1
-        auth_session.last_blink_at = time.time()
-        print(f"[BLINK] Blink #{auth_session.blink_count} detected")
+        # Get session
+        auth_session = get_auth_session(session_id)
+        if not auth_session:
+            return jsonify({'success': False, 'error': 'Invalid or expired session'}), 400
 
-    # --- finalize authentication after first blink
-    if auth_session.blink_count >= 1 and not auth_session.authenticated:
-        auth_session.authenticated = True
-        # generate session token (simplified, you can replace with JWT or secure token)
-        auth_session.token = secrets.token_hex(16)
-        auth_session.redirect_url = "/dashboard"
+        # Decode frame
+        ok, frame_bgr, err = _decode_data_url_to_bgr(frame_data)
+        if not ok:
+            return jsonify({'success': False, 'error': err}), 400
 
-    # --- response
-    return jsonify({
-        "success": True,
-        "blink_info": blink_info,
-        "session_status": {
-            "blink_detected": blink_detected,
+        # Run face detection to get bbox
+        faces = face_detector.detect_faces(frame_bgr)
+        if not faces:
+            return jsonify({'success': False, 'error': 'No face detected'}), 400
+
+        # Pick best face
+        best_face = max(faces, key=lambda f: f.get("confidence", 0.0))
+        H, W = frame_bgr.shape[:2]
+        bbox = _normalize_bbox(best_face["bbox"], W, H)
+
+        # Blink detection via mEAR
+        blink_info = _blink_via_mear(frame_bgr, bbox, auth_session)
+
+        if blink_info.get("blink_detected"):
+            auth_session.blink_count += 1
+            if auth_session.blink_count >= auth_session.required_blinks:
+                auth_session.blink_detected = True
+
+        return jsonify({
+            "success": True,
+            "blink_info": blink_info,
             "blink_count": auth_session.blink_count,
-            "authenticated": auth_session.authenticated
-        },
-        "session_token": getattr(auth_session, "token", None),
-        "redirect_url": getattr(auth_session, "redirect_url", None)
-    })
+            "required_blinks": auth_session.required_blinks,
+            "blink_verified": auth_session.blink_detected,
+            "session_complete": auth_session.is_complete(),
+        })
+
+    except Exception as e:
+        logger.error(f"Blink authentication error: {e}")
+        return jsonify({"success": False, "error": "Blink authentication failed"}), 500
 
 @authentication.route('/blink_live', methods=['POST'])
 def blink_live():
@@ -804,5 +805,6 @@ def require_auth(f):
 def dashboard():
     user = getattr(request, 'user_data', None)
     return render_template('dashboard.html', user=user)
+
 
 

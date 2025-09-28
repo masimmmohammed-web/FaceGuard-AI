@@ -23,8 +23,8 @@ import sys
 import time
 from pathlib import Path
 import logging
+import secrets
 from typing import Optional, Tuple, List, Dict
-
 import dlib
 
 # Optional import for predictor path reuse
@@ -545,7 +545,7 @@ def authenticate_face():
         logger.error(f"Face authentication error: {e}")
         return jsonify({'error': 'Face authentication failed'}), 500
 
-@app.route('/authenticate_blink', methods=['POST'])
+@authentication.route('/authenticate_blink', methods=['POST'])
 def authenticate_blink():
     global auth_session
     if not auth_session:
@@ -804,4 +804,5 @@ def require_auth(f):
 def dashboard():
     user = getattr(request, 'user_data', None)
     return render_template('dashboard.html', user=user)
+
 

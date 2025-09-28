@@ -545,184 +545,57 @@ def authenticate_face():
         logger.error(f"Face authentication error: {e}")
         return jsonify({'error': 'Face authentication failed'}), 500
 
-@authentication.route('/authenticate_blink', methods=['POST'])
+@app.route('/authenticate_blink', methods=['POST'])
 def authenticate_blink():
+    global auth_session
+    if not auth_session:
+        return jsonify({'success': False, 'error': 'No active authentication session'}), 400
+
+    data = request.get_json()
+    frame_data = data.get("frame_data")
+    if not frame_data:
+        return jsonify({'success': False, 'error': 'No frame data received'}), 400
+
+    # --- decode frame
     try:
-        data = request.get_json() or {}
-        session_id = data.get('session_id')
-        frame_data = data.get('frame_data', '')
-
-        if not session_id: return jsonify({'error': 'Session ID required'}), 400
-        if not frame_data: return jsonify({'error': 'Face image required'}), 400
-
-        auth_session = get_auth_session(session_id)
-        if not auth_session: return jsonify({'error': 'Invalid or expired session'}), 400
-        if not auth_session.face_matched: return jsonify({'error': 'Face authentication required first'}), 400
-        if not auth_session.can_attempt(): return jsonify({'error': 'Maximum attempts exceeded or session expired'}), 400
-
-        # If we already have enough blinks from live polling, finalize quickly
-        if auth_session.blink_count >= auth_session.required_blinks:
-            session_token = db.create_session(auth_session.user_id)
-            db.update_last_login(auth_session.user_id)
-
-            try:
-                db.log_auth_attempt(
-                    auth_session.user_id,
-                    'blink_detection',
-                    True,
-                    0.9,
-                    {
-                        'blink_confidence': 0.9,
-                        'method': 'mear',
-                        'thresholds': {}
-                    }
-                )
-            except Exception as e:
-                logger.error(f"Logging auth attempt failed: {e}")
-
-            try: del auth_sessions[session_id]
-            except Exception: pass
-
-            resp = jsonify({
-                'success': True,
-                'message': 'Authentication successful!',
-                'session_token': session_token,
-                'redirect_url': '/dashboard',
-                'user_info': {
-                    'user_id': auth_session.user_id,
-                    'username': auth_session.username
-                },
-                'blink_info': {
-                    'detected': True,
-                    'confidence': 0.9,
-                    'ear': None,
-                    'mear': None,
-                    'method': 'mear',
-                    'thresholds': {}
-                }
-            })
-            try:
-                resp.set_cookie('session_token', session_token, max_age=60*60*8, secure=False, httponly=False, samesite='Lax', path='/')
-            except Exception:
-                pass
-            return resp
-
-        ok, image, err = _decode_data_url_to_bgr(frame_data)
-        if not ok: return jsonify({'error': err}), 400
-
-        faces = face_detector.detect_faces(image)
-        if not faces: return jsonify({'error': 'No face detected'}), 400
-
-        best_face = max(faces, key=lambda x: x.get('confidence', 0))
-        H, W = image.shape[:2]
-        bx, by, bw, bh = _normalize_bbox(best_face['bbox'], W, H)
-        bx, by, bw, bh = _expand_bbox(bx, by, bw, bh, W, H, margin=0.15)
-        bbox = (bx, by, bw, bh)
-
-        blink = _blink_via_mear(image, bbox, auth_session)
-        if not blink.get('available') and eye_tracker is not None:
-            try:
-                eyes = eye_tracker.detect_eyes(image, bbox)
-                blink = eye_tracker.detect_blink(eyes)
-            except Exception as _e:
-                logger.error(f"Fallback blink failed: {_e}")
-                blink = {'blink_detected': False, 'confidence': 0.0, 'method': 'unknown'}
-
-        blink_detected = bool(blink.get('blink_detected', False))
-        blink_confidence = float(blink.get('confidence', 0.0))
-
-        # Require N blinks; do not finalize until met
-        if auth_session.blink_count < auth_session.required_blinks:
-            return jsonify({
-                'success': False,
-                'error': f'More blinks required ({auth_session.blink_count}/{auth_session.required_blinks}).',
-                'blink_info': {
-                    'detected': blink_detected,
-                    'confidence': blink_confidence,
-                    'ear': blink.get('ear'),
-                    'mear': blink.get('mear'),
-                    'method': blink.get('method', 'unknown'),
-                    'thresholds': blink.get('thresholds')
-                },
-                'progress': {
-                    'blink_count': auth_session.blink_count,
-                    'required_blinks': auth_session.required_blinks
-                }
-            }), 400
-
-        if blink_detected and blink_confidence >= 0.5:  # type: ignore[func-returns-value]
-            auth_session.blink_detected = True
-
-            session_token = db.create_session(auth_session.user_id)
-            db.update_last_login(auth_session.user_id)
-
-            try:
-                db.log_auth_attempt(
-                    auth_session.user_id,
-                    'blink_detection',
-                    True,
-                    blink_confidence,
-                    {
-                        'blink_confidence': blink_confidence,
-                        'method': blink.get('method', 'unknown'),
-                        'thresholds': blink.get('thresholds', {})
-                    }
-                )
-            except Exception as e:
-                logger.error(f"Logging auth attempt failed: {e}")
-
-            try: del auth_sessions[session_id]
-            except Exception: pass
-
-            resp = jsonify({
-                'success': True,
-                'message': 'Authentication successful!',
-                'session_token': session_token,
-                'redirect_url': '/dashboard',
-                'user_info': {
-                    'user_id': auth_session.user_id,
-                    'username': auth_session.username
-                },
-                'blink_info': {
-                    'detected': blink_detected,
-                    'confidence': blink_confidence,
-                    'ear': blink.get('ear'),
-                    'mear': blink.get('mear'),
-                    'method': blink.get('method', 'unknown'),
-                    'thresholds': blink.get('thresholds')
-                }
-            })
-            try:
-                resp.set_cookie('session_token', session_token, max_age=60*60*8, secure=False, httponly=False, samesite='Lax', path='/')
-            except Exception:
-                pass
-            return resp
-        else:
-            auth_session.attempts += 1
-            return jsonify({
-                'success': False,
-                'error': 'Blink not detected. Please blink naturally.',
-                'blink_info': {
-                    'detected': blink_detected,
-                    'confidence': blink_confidence,
-                    'ear': blink.get('ear'),
-                    'mear': blink.get('mear'),
-                    'method': blink.get('method', 'unknown'),
-                    'thresholds': blink.get('thresholds')
-                },
-                'attempts_remaining': auth_session.max_attempts - auth_session.attempts,
-                'can_retry': auth_session.can_attempt()
-            }), 400
-
+        header, encoded = frame_data.split(",", 1)
+        img_bytes = base64.b64decode(encoded)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     except Exception as e:
-        logger.error(f"Blink authentication error: {e}")
-        try:
-            data = request.get_json() or {}
-            sess = get_auth_session(data.get('session_id', ''))
-            if sess: sess.attempts += 1
-        except Exception:
-            pass
-        return jsonify({'error': 'Blink authentication failed'}), 500
+        return jsonify({'success': False, 'error': f'Frame decode failed: {e}'}), 400
+
+    # --- run blink detection
+    blink_info = _blink_via_mear(frame, auth_session)
+    if blink_info is None:
+        return jsonify({'success': False, 'error': 'Blink processing failed'}), 500
+
+    # --- update session state
+    blink_detected = bool(blink_info.get("detected"))
+    if blink_detected:
+        auth_session.blink_count += 1
+        auth_session.last_blink_at = time.time()
+        print(f"[BLINK] Blink #{auth_session.blink_count} detected")
+
+    # --- finalize authentication after first blink
+    if auth_session.blink_count >= 1 and not auth_session.authenticated:
+        auth_session.authenticated = True
+        # generate session token (simplified, you can replace with JWT or secure token)
+        auth_session.token = secrets.token_hex(16)
+        auth_session.redirect_url = "/dashboard"
+
+    # --- response
+    return jsonify({
+        "success": True,
+        "blink_info": blink_info,
+        "session_status": {
+            "blink_detected": blink_detected,
+            "blink_count": auth_session.blink_count,
+            "authenticated": auth_session.authenticated
+        },
+        "session_token": getattr(auth_session, "token", None),
+        "redirect_url": getattr(auth_session, "redirect_url", None)
+    })
 
 @authentication.route('/blink_live', methods=['POST'])
 def blink_live():
@@ -931,3 +804,4 @@ def require_auth(f):
 def dashboard():
     user = getattr(request, 'user_data', None)
     return render_template('dashboard.html', user=user)
+

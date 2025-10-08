@@ -602,7 +602,7 @@ def authenticate_blink():
 def blink_live():
     """
     Live blink analysis (poll per frame).
-    - Does NOT increment attempts or finalize auth.
+    Uses anti_spoofing for liveness; main pipeline for authentication blink.
     """
     try:
         data = request.get_json() or {}
@@ -628,8 +628,17 @@ def blink_live():
         bx, by, bw, bh = _expand_bbox(bx, by, bw, bh, W, H, margin=0.15)
         bbox = (bx, by, bw, bh)
 
-        blink = _blink_via_mear(image, bbox, auth_session)
+        # --- Use anti_spoofing for liveness ---
+        liveness_ok = True
+        liveness_metrics = {}
+        if anti:
+            comp = anti.comprehensive_analysis(image, bbox, [])
+            liveness = comp.get('liveness', {})
+            liveness_ok = bool(liveness.get('is_live', True))
+            liveness_metrics = liveness.get('metrics', {})
 
+        # --- Use main blink detection for authentication ---
+        blink = _blink_via_mear(image, bbox, auth_session)
         # Persist strong blink in session to allow fast finalize; count blinks
         try:
             if bool(blink.get('blink_detected', False)) and float(blink.get('confidence', 0.0)) >= 0.5:
@@ -638,8 +647,11 @@ def blink_live():
         except Exception:
             pass
 
+        # --- Response combines both ---
         return jsonify({
             'success': True,
+            'liveness_ok': liveness_ok,
+            'liveness_metrics': liveness_metrics,
             'blink_info': {
                 'detected': bool(blink.get('blink_detected', False)),
                 'confidence': float(blink.get('confidence', 0.0)),
@@ -805,6 +817,7 @@ def require_auth(f):
 def dashboard():
     user = getattr(request, 'user_data', None)
     return render_template('dashboard.html', user=user)
+
 
 
 

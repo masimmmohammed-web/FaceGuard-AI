@@ -5,8 +5,8 @@ import numpy as np
 import cv2
 from PIL import Image
 
-# Import the HF model utilities from images.final_deepfake_detection
-from images.final_deepfake_detection import (
+# Import the HF model utilities from src.deepfake_detection
+from src.deepfake_detection import (
     load_model,
     predict_image,
     detect_faces_cv2,
@@ -70,5 +70,6 @@ class HFDeepfakeEngine:
             },
             "engine": "prithivMLmods/Deepfake-vs-Real-8000",
         }
+
 
 
